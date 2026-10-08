@@ -1,0 +1,1900 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>铺路石志愿者调配助手</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>/* ============================================================
+   视觉层. 玻璃拟态只用在外壳(卡片、工具栏、分段控件)上,
+   数据表本身保持高对比与实心底, 否则密集数字会糊.
+   ============================================================ */
+
+:root{
+  --accent:#4F6BED;
+  --accent-2:#6D5CE7;
+  --ok:#0E9F6E;
+  --warn:#B7791F;
+  --err:#DC2F35;
+
+  --txt:#141821;
+  --txt-2:#5A6478;
+  --txt-3:#8A93A6;
+
+  --glass:rgba(255,255,255,.60);
+  --glass-2:rgba(255,255,255,.44);
+  --glass-solid:rgba(255,255,255,.86);
+  --brd:rgba(255,255,255,.72);
+  --hair:rgba(20,24,33,.085);
+  --hair-2:rgba(20,24,33,.05);
+  --tint:rgba(118,124,145,.10);
+
+  --sh-1:0 1px 2px rgba(16,24,40,.04);
+  --sh-2:0 1px 2px rgba(16,24,40,.04), 0 10px 28px -8px rgba(16,24,40,.14);
+  --sh-3:0 2px 4px rgba(16,24,40,.05), 0 22px 48px -14px rgba(16,24,40,.22);
+
+  --r-lg:22px; --r-md:14px; --r-sm:10px;
+  --blur:saturate(180%) blur(24px);
+}
+
+@media (prefers-color-scheme:dark){
+  :root{
+    --txt:#ECEFF6; --txt-2:#A3AABC; --txt-3:#7A8296;
+    --glass:rgba(30,34,45,.60);
+    --glass-2:rgba(30,34,45,.42);
+    --glass-solid:rgba(24,28,38,.90);
+    --brd:rgba(255,255,255,.10);
+    --hair:rgba(255,255,255,.10);
+    --hair-2:rgba(255,255,255,.06);
+    --tint:rgba(255,255,255,.07);
+    --accent:#7C90F5; --ok:#35C48D; --warn:#E0A93C; --err:#F0666B;
+    --sh-2:0 1px 2px rgba(0,0,0,.3), 0 10px 28px -8px rgba(0,0,0,.5);
+    --sh-3:0 2px 4px rgba(0,0,0,.3), 0 22px 48px -14px rgba(0,0,0,.6);
+  }
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFang SC','Microsoft YaHei',
+    'Helvetica Neue',sans-serif;
+  font-size:14.5px; line-height:1.65; color:var(--txt);
+  -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1100px 780px at 8% -8%, #DCE7FF 0%, transparent 62%),
+    radial-gradient(880px 680px at 98% 4%, #E9DEFF 0%, transparent 58%),
+    radial-gradient(900px 820px at 42% 108%, #D6F1EA 0%, transparent 62%),
+    linear-gradient(180deg,#F7F9FD 0%,#EFF2F8 100%);
+  background-attachment:fixed;
+  min-height:100vh;
+}
+@media (prefers-color-scheme:dark){
+  body{background:
+    radial-gradient(1100px 780px at 8% -8%, #1B2340 0%, transparent 62%),
+    radial-gradient(880px 680px at 98% 4%, #241D3D 0%, transparent 58%),
+    radial-gradient(900px 820px at 42% 108%, #14302B 0%, transparent 62%),
+    linear-gradient(180deg,#0F1218 0%,#141821 100%);}
+}
+
+.wrap{max-width:1180px;margin:0 auto;padding:52px 24px 100px}
+
+/* ---------- 页头 ---------- */
+.hero{margin-bottom:34px}
+h1{
+  font-size:31px; line-height:1.25; margin:0 0 10px; letter-spacing:-.022em; font-weight:650;
+  background:linear-gradient(120deg,var(--txt) 30%,var(--accent) 130%);
+  -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+.sub{color:var(--txt-2);font-size:14.5px;max-width:760px;margin:0}
+.sub b{color:var(--txt);font-weight:600}
+
+/* ---------- 玻璃卡片 ---------- */
+.card-box{
+  background:var(--glass);
+  -webkit-backdrop-filter:var(--blur); backdrop-filter:var(--blur);
+  border:1px solid var(--brd);
+  border-radius:var(--r-lg);
+  box-shadow:var(--sh-2);
+  margin-bottom:20px;
+  overflow:hidden;
+  transition:box-shadow .3s ease;
+}
+.card-box:hover{box-shadow:var(--sh-3)}
+.card-hd{
+  padding:18px 24px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  border-bottom:1px solid var(--hair-2);
+  background:linear-gradient(180deg,rgba(255,255,255,.34),rgba(255,255,255,0));
+}
+@media (prefers-color-scheme:dark){
+  .card-hd{background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,0))}
+}
+.card-hd h2{font-size:16.5px;margin:0;font-weight:620;letter-spacing:-.012em}
+.card-bd{padding:22px 24px 24px}
+.spacer{flex:1}
+
+.step{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:27px;height:27px;border-radius:50%;flex:0 0 auto;
+  font-size:13px;font-weight:600;color:#fff;letter-spacing:-.01em;
+  background:linear-gradient(150deg,var(--accent),var(--accent-2));
+  box-shadow:0 3px 9px -2px rgba(79,107,237,.55), inset 0 1px 0 rgba(255,255,255,.35);
+}
+
+.hint{color:var(--txt-2);font-size:13px;margin:0 0 16px;line-height:1.7}
+.hint b{color:var(--txt)}
+.hint:last-child{margin-bottom:0}
+
+/* ---------- 控件 ---------- */
+button,.filelbl{
+  font:inherit;font-size:13.5px;font-weight:500;
+  padding:8px 17px;border-radius:999px;
+  border:1px solid var(--hair);
+  background:var(--glass-solid);
+  -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+  color:var(--txt); cursor:pointer;
+  box-shadow:var(--sh-1);
+  transition:transform .16s cubic-bezier(.2,.8,.3,1), box-shadow .16s, background .16s;
+  display:inline-block;
+}
+button:hover,.filelbl:hover{transform:translateY(-1px);box-shadow:var(--sh-2)}
+button:active,.filelbl:active{transform:translateY(0) scale(.985)}
+button:focus-visible,.filelbl:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+button.primary{
+  background:linear-gradient(165deg,#6480F5,#3F5FE0);
+  color:#fff;border-color:transparent;
+  padding:13px 40px;font-size:15.5px;font-weight:600;letter-spacing:.01em;
+  box-shadow:0 6px 20px -6px rgba(63,95,224,.62), inset 0 1px 0 rgba(255,255,255,.28);
+}
+button.primary:hover{box-shadow:0 10px 28px -8px rgba(63,95,224,.7), inset 0 1px 0 rgba(255,255,255,.28)}
+button.primary:disabled{
+  background:var(--tint);color:var(--txt-3);box-shadow:none;cursor:not-allowed;transform:none;
+}
+button.mini{padding:3px 11px;font-size:12px;box-shadow:none;background:var(--glass-2)}
+button.del{
+  border:none;background:transparent;box-shadow:none;color:var(--txt-3);
+  padding:4px 7px;font-size:13px;opacity:0;
+}
+tr:hover button.del,button.del:focus-visible{opacity:1}
+button.del:hover{color:var(--err);background:rgba(220,47,53,.10);transform:none}
+/* 触屏没有 hover, 删除键必须常显 */
+@media (hover:none),(pointer:coarse){ button.del{opacity:.6} }
+input[type=file]{display:none}
+
+.toolbar{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+
+/* ---------- iOS 风分段控件 ---------- */
+.tabs{
+  display:inline-flex;gap:3px;padding:4px;border-radius:var(--r-md);
+  background:var(--tint);
+  -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+  margin-bottom:20px;flex-wrap:wrap;
+}
+.tabs button{
+  border:none;background:transparent;box-shadow:none;border-radius:var(--r-sm);
+  padding:7px 16px;color:var(--txt-2);font-weight:500;
+}
+.tabs button:hover{background:rgba(255,255,255,.45);transform:none;box-shadow:none}
+.tabs button.on{
+  background:var(--glass-solid);color:var(--txt);font-weight:600;
+  box-shadow:0 1px 3px rgba(16,24,40,.10);
+}
+
+/* ---------- 录入表格: 只留细横线, 去掉所有竖线 ---------- */
+.tablewrap{
+  overflow:auto;max-height:460px;
+  border:1px solid var(--hair-2);border-radius:var(--r-md);
+  background:var(--glass-solid);
+}
+table.grid{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
+table.grid th{
+  position:sticky;top:0;z-index:2;
+  background:var(--glass-solid);
+  -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--hair);
+  padding:11px 14px;text-align:left;white-space:nowrap;
+  font-weight:600;font-size:12px;letter-spacing:.03em;color:var(--txt-2);
+}
+table.grid td{border-bottom:1px solid var(--hair-2);padding:0}
+table.grid tbody tr:last-child td{border-bottom:none}
+table.grid tbody tr{transition:background .14s}
+table.grid tbody tr:hover{background:var(--tint)}
+table.grid td.act,table.grid th.act{width:42px;text-align:center;padding:0 4px}
+table.grid input{
+  width:100%;border:none;padding:10px 14px;font:inherit;font-size:13.5px;
+  background:transparent;outline:none;color:var(--txt);border-radius:8px;
+}
+table.grid input::placeholder{color:var(--txt-3);opacity:.72}
+table.grid input:focus{
+  background:rgba(79,107,237,.07);
+  box-shadow:inset 0 0 0 1.5px rgba(79,107,237,.55);
+}
+td.empty{padding:38px 24px;text-align:center;color:var(--txt-3);font-size:13.5px;line-height:1.8}
+
+/* ---------- 结果表格 ---------- */
+.restable{
+  border:1px solid var(--hair-2);border-radius:var(--r-md);overflow:hidden;
+  background:var(--glass-solid);margin-top:12px;
+}
+table.res{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
+table.res th{
+  background:var(--tint);border-bottom:1px solid var(--hair);
+  padding:10px 14px;text-align:left;white-space:nowrap;
+  font-weight:600;font-size:12px;letter-spacing:.03em;color:var(--txt-2);
+}
+table.res td{border-bottom:1px solid var(--hair-2);padding:9px 14px;vertical-align:top}
+table.res tbody tr:last-child td{border-bottom:none}
+table.res tbody tr{transition:background .14s}
+table.res tbody tr:hover{background:var(--tint)}
+table.res td.n,table.res th.n{text-align:right;font-variant-numeric:tabular-nums}
+table.res tr.hot td{background:rgba(183,121,31,.09)}
+table.res tr.hot:hover td{background:rgba(183,121,31,.15)}
+.tablescroll{overflow-x:auto}
+
+.pill{
+  display:inline-block;padding:1px 9px;border-radius:999px;font-size:11.5px;font-weight:600;
+  letter-spacing:.01em;
+}
+.pill.g{background:rgba(14,159,110,.14);color:var(--ok)}
+.pill.a{background:rgba(183,121,31,.16);color:var(--warn)}
+.pill.r{background:rgba(220,47,53,.13);color:var(--err)}
+.pill.n{background:var(--tint);color:var(--txt-2)}
+
+/* ---------- 提示条 ---------- */
+.msg{
+  padding:13px 17px;border-radius:var(--r-md);margin:14px 0;font-size:13.5px;
+  border:1px solid var(--hair-2);line-height:1.7;
+  -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+}
+.msg ul{margin:8px 0 0;padding-left:20px}
+.msg li{margin-bottom:3px}
+.msg.err{background:rgba(220,47,53,.075);border-color:rgba(220,47,53,.24)}
+.msg.warn{background:rgba(183,121,31,.085);border-color:rgba(183,121,31,.26)}
+.msg.ok{background:rgba(14,159,110,.075);border-color:rgba(14,159,110,.24)}
+.msg b{font-weight:620}
+
+.pf{font-size:13.5px;color:var(--txt-2);padding:14px 0 2px;line-height:1.8}
+.pf b{color:var(--txt);font-weight:620}
+.neg{color:var(--err);font-weight:620}
+.pos{color:var(--ok);font-weight:600}
+
+/* ---------- 指标卡 ---------- */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(152px,1fr));gap:12px;margin:8px 0 24px}
+.card{
+  border:1px solid var(--brd);border-radius:var(--r-md);padding:15px 17px;
+  background:var(--glass-2);
+  -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
+  box-shadow:var(--sh-1);
+  transition:transform .2s cubic-bezier(.2,.8,.3,1), box-shadow .2s;
+}
+.card:hover{transform:translateY(-2px);box-shadow:var(--sh-2)}
+.card .k{font-size:12px;color:var(--txt-2);letter-spacing:.01em;line-height:1.4}
+.card .v{font-size:25px;font-weight:650;margin-top:5px;letter-spacing:-.025em;
+  font-variant-numeric:tabular-nums;line-height:1.15}
+
+.bar{display:inline-block;height:8px;vertical-align:middle;border-radius:999px;min-width:3px}
+.barwrap{display:flex;flex-direction:column;gap:5px;min-width:170px}
+.barrow{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--txt-2);
+  font-variant-numeric:tabular-nums}
+
+/* ---------- 参数 ---------- */
+#params{display:grid;gap:4px}
+.pf-row{
+  display:grid;grid-template-columns:250px 118px 1fr;gap:14px;align-items:center;
+  padding:9px 12px;border-radius:var(--r-sm);font-size:13.5px;transition:background .14s;
+}
+.pf-row:hover{background:var(--tint)}
+.pf-lb{color:var(--txt);font-weight:500}
+.pf-hp{color:var(--txt-3);font-size:12.5px;line-height:1.55}
+.pf-row input{
+  padding:8px 12px;border:1px solid var(--hair);border-radius:var(--r-sm);
+  font:inherit;font-size:13.5px;width:100%;background:var(--glass-solid);color:var(--txt);
+  outline:none;transition:border-color .14s, box-shadow .14s;
+  font-variant-numeric:tabular-nums;
+}
+.pf-row input:focus{border-color:var(--accent);box-shadow:0 0 0 3.5px rgba(79,107,237,.16)}
+
+/* ---------- 数据来源 ---------- */
+.srcopt{
+  display:block;padding:15px 18px;border-radius:var(--r-md);cursor:pointer;
+  border:1px solid var(--hair-2);margin-bottom:11px;
+  background:var(--glass-2);transition:border-color .16s, background .16s;
+}
+.srcopt:hover{border-color:rgba(79,107,237,.34)}
+.srcopt:has(input:checked){
+  border-color:var(--accent);background:rgba(79,107,237,.07);
+  box-shadow:0 0 0 3px rgba(79,107,237,.10);
+}
+.srcopt input{margin-right:10px;accent-color:var(--accent);transform:scale(1.15)}
+.srcopt .t{font-weight:600;font-size:14.5px}
+.srcopt .d{color:var(--txt-2);font-size:12.8px;margin:6px 0 0 27px;line-height:1.7}
+
+#amapBox{
+  display:none;margin:4px 0 0 27px;padding:18px 20px;
+  background:var(--glass-2);border:1px solid var(--hair-2);border-radius:var(--r-md);max-width:760px;
+}
+#amapBox label{display:block;margin-bottom:14px;font-size:13px;font-weight:500;color:var(--txt-2)}
+#amapBox input[type=text],#amapBox input[type=password]{
+  width:100%;padding:10px 13px;border:1px solid var(--hair);border-radius:var(--r-sm);
+  font:inherit;font-size:13.5px;margin-top:6px;background:var(--glass-solid);color:var(--txt);
+  outline:none;transition:border-color .14s, box-shadow .14s;
+}
+#amapBox input:focus{border-color:var(--accent);box-shadow:0 0 0 3.5px rgba(79,107,237,.16)}
+
+#progress{
+  display:none;margin-top:16px;font-size:13.5px;color:var(--txt);padding:13px 18px;
+  background:var(--glass-2);border:1px solid var(--hair-2);border-radius:var(--r-md);
+}
+#progress::before{
+  content:'';display:inline-block;width:13px;height:13px;margin-right:10px;
+  vertical-align:-2px;border-radius:50%;
+  border:2px solid rgba(79,107,237,.28);border-top-color:var(--accent);
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.runrow{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.runcard .card-bd{padding:26px 24px}
+
+code{
+  background:var(--tint);padding:2px 7px;border-radius:6px;font-size:12.5px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+a{color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(79,107,237,.3)}
+a:hover{border-bottom-color:var(--accent)}
+
+.foot{
+  color:var(--txt-3);font-size:12.5px;margin-top:34px;line-height:1.9;
+  padding:20px 24px;border-radius:var(--r-md);
+  background:var(--glass-2);border:1px solid var(--hair-2);
+}
+
+/* 结果区出现时轻轻淡入 */
+#resultCard{animation:rise .42s cubic-bezier(.2,.8,.3,1)}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms !important;transition-duration:.001ms !important}
+}
+
+@media (max-width:760px){
+  .wrap{padding:32px 15px 72px}
+  h1{font-size:25px}
+  .card-hd,.card-bd{padding-left:17px;padding-right:17px}
+  .pf-row{grid-template-columns:1fr;gap:5px;padding:11px 12px}
+  .pf-hp{margin-bottom:2px}
+  .cards{grid-template-columns:repeat(auto-fit,minmax(128px,1fr))}
+  #amapBox,.srcopt .d{margin-left:0}
+}
+
+/* 本地保存状态 */
+.savestate{
+  font-size:12px;color:var(--txt-3);opacity:.45;transition:opacity .3s;
+  padding:3px 11px;border-radius:999px;background:var(--tint);
+}
+
+/* 高德 Key 测试结果 */
+.testresult{font-size:13px;color:var(--txt-2)}
+.testresult.ok{color:var(--ok);font-weight:600}
+.testresult.err{color:var(--err);font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<div class="hero">
+<h1>铺路石志愿者调配助手</h1>
+<p class="sub">录入志愿者与班级数据，自动排出通勤总时长最短的分配方案。
+<b>硬约束</b>是时段完全匹配、每人只带一个班、班级人数不超需求；
+<b>优先级</b>是按上传表格里的教学点与班级顺序优先安排，再尽量配满，最后压通勤时间。</p>
+</div>
+
+<!-- ===== 1 数据 ===== -->
+<div class="card-box">
+  <div class="card-hd"><span class="step">1</span><h2>录入数据</h2>
+    <span class="spacer"></span>
+    <span class="savestate" id="saveState"></span>
+    <label class="filelbl">上传 Excel<input type="file" id="xlsxFile" accept=".xlsx,.xls"></label>
+    <button id="exampleBtn">载入 25 Spring 示例</button>
+    <button id="clearBtn">清空</button>
+  </div>
+  <div class="card-bd">
+    <p class="hint">三种录入方式任选：上传原始 Excel（自动识别 vol info / site info 两张表，
+      合并单元格会向下填充）、从 Excel 复制一片区域直接粘贴到表格里、或者手工逐行填。
+      时段可以写「周六上午」也可以写「Saturday morning」。地铁站多个用分号隔开；
+      若还有其他就近地铁站，或最近站点可换乘的其他线路，请写在补充地铁站列。</p>
+    <div class="tabs" data-scope="in">
+      <button data-tab="vol" class="on">志愿者（<span id="volCount">0</span>）</button>
+      <button data-tab="site">项目点与班级（<span id="siteCount">0</span>）</button>
+      <button data-tab="alias">站名别名</button>
+    </div>
+    <div data-panel="vol" data-scope="in">
+      <div class="toolbar"><button id="addVol">＋ 加一行</button></div>
+      <div class="tablewrap" id="volTable"></div>
+    </div>
+    <div data-panel="site" data-scope="in" style="display:none">
+      <div class="toolbar"><button id="addSite">＋ 加一行</button></div>
+      <div class="tablewrap" id="siteTable"></div>
+    </div>
+    <div data-panel="alias" data-scope="in" style="display:none">
+      <p class="hint">只填英文的站名、或者写法和官方站名不一致的，在这里建立对应关系。
+        表里已经预置了三条来自 25 Spring 数据的映射。</p>
+      <div class="toolbar"><button id="addAlias">＋ 加一条</button></div>
+      <div class="tablewrap" id="aliasTable"></div>
+    </div>
+    <div id="preflight"></div>
+  </div>
+</div>
+
+<!-- ===== 2 规则 ===== -->
+<div class="card-box">
+  <div class="card-hd"><span class="step">2</span><h2>规则参数</h2></div>
+  <div class="card-bd">
+    <p class="hint">默认值来自需求沟通记录，一般不用改。</p>
+    <div id="params"></div>
+  </div>
+</div>
+
+<!-- ===== 3 人工锁定 ===== -->
+<div class="card-box">
+  <div class="card-hd"><span class="step">3</span><h2>人工锁定（可选）</h2>
+    <span class="spacer"></span><button id="addLock">＋ 加一条</button></div>
+  <div class="card-bd">
+    <p class="hint">已经想好去哪的老志愿者可以先钉死，他们和占用的名额会在计算前扣掉，
+      模型只排剩下的人。如果锁定的组合本身时段不匹配或通勤超限，会报出来而不是默默接受。</p>
+    <div class="tablewrap" id="lockTable"></div>
+  </div>
+</div>
+
+<!-- ===== 4 通勤来源 ===== -->
+<div class="card-box">
+  <div class="card-hd"><span class="step">4</span><h2>通勤时间来源</h2>
+    <span class="spacer"></span><span class="hint" id="topoInfo" style="margin:0"></span></div>
+  <div class="card-bd">
+    <label class="srcopt"><input type="radio" name="src" value="offline" checked><span class="t">本地估算（不需要 Key）</span>
+      <div class="d">用内置的上海地铁拓扑算最短在途时间，换乘按固定惩罚计。
+        和常识区间对比 12 组里 9 组吻合，精度约 ±15%。够判断结构性缺口，不够当正式排班依据。</div></label>
+    <label class="srcopt"><input type="radio" name="src" value="amap"><span class="t">高德地图（真实换乘时间）</span>
+      <div class="d">调高德公交路径规划，拿真实在途时间和换乘次数。
+        两个站地理距离近但不同线时，实际换乘可能绕一大圈，只有真实路径规划能算准这个。</div></label>
+    <div id="amapBox">
+      <label>高德 Key
+        <input type="text" id="amapKey" placeholder="在这里粘贴 Key" autocomplete="off" spellcheck="false"></label>
+      <label>安全密钥（securityJsCode）
+        <input type="text" id="amapCode" placeholder="创建 Key 时一起生成的安全密钥" autocomplete="off" spellcheck="false"></label>
+      <div class="toolbar" style="margin:2px 0 12px">
+        <button id="testKeyBtn" type="button">测试 Key</button>
+        <span id="amapTestResult" class="testresult"></span>
+      </div>
+      <p class="hint" style="margin:2px 0 0">
+        <b>Key 的类型。</b>在
+        <a href="https://console.amap.com/dev/key/app" target="_blank" rel="noopener">高德控制台</a>
+        创建应用后添加 Key，服务平台选 <code>Web端(JS API)</code>，会同时生成一个安全密钥，两个都要填。<br>
+        高德的 <code>Web服务</code> 类型面向企业/服务端场景，个人开发者账号通常申请不到，
+        所以这里走的是 <code>Web端(JS API)</code> 这条路：加载高德 JS SDK，用内置的
+        <code>AMap.Transfer</code> 公交换乘插件查询。<br>
+        <b>先点「测试 Key」</b>，一次调用就知道能不能用，不用等跑完一整批才发现填错了。<br>
+        <b>Key 和安全密钥都不会被保存</b>，每次要重新填。录入的数据和通勤缓存会自动存在本机。<br>
+        <b>调用量。</b>只查时段能匹配上的站对，40 人 30 班约 236 次。
+        结果自动缓存，项目点站点固定不变，下学期只需为新增的志愿者站点补算。<br>
+        连续失败会自动停下并说明原因，不会白跑几百次。个别站对查不到时退回本地估算，并在结果里标出来。<br>
+        <b>字段名尚未用真实数据核实过</b>，浏览器控制台会打印前几条原始返回
+        （<code>[高德原始返回]</code> 开头），如果换乘次数看起来不对，把控制台内容发给我核对。
+      </p>
+      <div class="toolbar" style="margin:14px 0 0">
+        <button id="exportCache">导出通勤缓存</button>
+        <label class="filelbl">导入通勤缓存<input type="file" id="cacheFile" accept=".json"></label>
+        <button id="clearCache">清空通勤缓存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 计算 ===== -->
+<div class="card-box runcard"><div class="card-bd">
+  <div class="runrow">
+    <button class="primary" id="runBtn" disabled>开始计算</button>
+    <button id="cancelBtn" style="display:none">取消</button>
+    <span class="hint" style="margin:0">数据录入后按钮才会亮。40 人 30 班的规模，本地估算是瞬时的；
+      走高德约需一分半，中途可以取消，已经调用过的不会浪费。</span>
+  </div>
+  <div id="progress"></div>
+</div></div>
+
+<!-- ===== 结果 ===== -->
+<div class="card-box" id="resultCard" style="display:none">
+  <div class="card-hd"><span class="step">5</span><h2>分配方案</h2>
+    <span class="spacer"></span><button id="exportCsv">下载 CSV</button></div>
+  <div class="card-bd">
+    <div id="srcNote"></div>
+    <div class="cards" id="cards"></div>
+    <div class="tabs" data-scope="out">
+      <button data-tab="assign" class="on">分配方案</button>
+      <button data-tab="gap">未填补名额</button>
+      <button data-tab="unplaced">未安置志愿者</button>
+      <button data-tab="slot">时段供需</button>
+      <button data-tab="back">回填格式</button>
+      <button data-tab="warn">数据告警</button>
+    </div>
+    <div data-panel="assign" data-scope="out" id="tab-assign"></div>
+    <div data-panel="gap" data-scope="out" id="tab-gap" style="display:none"></div>
+    <div data-panel="unplaced" data-scope="out" id="tab-unplaced" style="display:none"></div>
+    <div data-panel="slot" data-scope="out" id="tab-slot" style="display:none"></div>
+    <div data-panel="back" data-scope="out" id="tab-back" style="display:none"></div>
+    <div data-panel="warn" data-scope="out" id="tab-warn" style="display:none"></div>
+  </div>
+</div>
+
+<div class="foot">
+  求解方法：带凸费用弧的最小费用流，等价于「表格顺序覆盖率 → 安置人数 → 总通勤代价」三层字典序目标，
+  结果是全局最优且可复现。已与 Python 版 CP-SAT 求解器在同一份数据上比对，三层目标值完全一致。<br>
+  地铁拓扑数据来自高德地图公开接口快照，含 15、17、18 号线。<br>
+  录入的数据与通勤缓存自动保存在本机浏览器，刷新不丢；高德 Key 不保存。<br>
+  单文件离线可用。上传 Excel 需要联网加载解析库；如果离线打开，请用复制粘贴方式录入。
+</div>
+</div>
+
+<script>
+const TOPO = {"lines":[{"n":"1","l":"","s":[["莘庄",121.38537,31.11115],["外环路",121.39302,31.1209],["莲花路",121.40291,31.1309],["锦江乐园",121.41411,31.14222],["上海南站",121.43004,31.15458],["漕宝路",121.43314,31.16834],["上海体育馆",121.43742,31.18281],["徐家汇",121.4366,31.19551],["衡山路",121.44642,31.20453],["常熟路",121.44914,31.21352],["陕西南路",121.45874,31.21515],["一大会址·黄陂南路",121.4729,31.2239],["人民广场",121.47511,31.23269],["新闸路",121.46815,31.23837],["汉中路",121.4587,31.24188],["上海火车站",121.45794,31.24963],["中山北路",121.4592,31.25889],["延长路",121.45533,31.27167],["上海马戏城",121.45202,31.27989],["汶水路",121.45025,31.29256],["彭浦新村",121.44864,31.3066],["共康路",121.44706,31.31894],["通河新村",121.44155,31.33113],["呼兰路",121.43771,31.3397],["共富新村",121.43406,31.35508],["宝安公路",121.43091,31.36955],["友谊西路",121.42795,31.3813],["富锦路",121.42466,31.39226]]},{"n":"2","l":"","s":[["浦东1号2号航站楼",121.80559,31.15096],["海天三路",121.79688,31.16846],["远东大道",121.7553,31.19938],["凌空路",121.7241,31.19286],["川沙",121.69821,31.18674],["华夏东路",121.68097,31.19657],["创新中路",121.67371,31.21387],["唐镇",121.65627,31.21411],["广兰路",121.62107,31.21105],["金科路",121.60199,31.20421],["张江高科",121.58749,31.20187],["龙阳路",121.55763,31.20358],["世纪公园",121.55091,31.20942],["上海科技馆",121.54444,31.21882],["世纪大道",121.52721,31.22868],["浦东南路",121.51556,31.23327],["陆家嘴",121.50213,31.23826],["南京东路",121.48463,31.2381],["人民广场",121.47511,31.23269],["南京西路",121.45997,31.22985],["静安寺",121.44653,31.22323],["江苏路",121.43064,31.22041],["中山公园",121.41577,31.21795],["娄山关路",121.40406,31.21116],["威宁路",121.38729,31.21487],["北新泾",121.374,31.21639],["淞虹路",121.35954,31.21823],["虹桥2号航站楼",121.32444,31.19405],["虹桥火车站",121.31895,31.19402],["国家会展中心",121.2992,31.18837],["蟠祥路·国家会计学院",121.28614,31.18139]]},{"n":"3","l":"","s":[["江杨北路",121.43982,31.40786],["铁力路",121.46114,31.40812],["友谊路",121.47592,31.40402],["宝杨路",121.47957,31.39532],["水产路",121.48825,31.3813],["淞滨路",121.49282,31.37093],["张华浜",121.49867,31.35802],["淞发路",121.50039,31.34513],["长江南路",121.49148,31.33206],["殷高西路",121.48486,31.32],["江湾镇",121.48506,31.30557],["大柏树",121.48322,31.28943],["赤峰路",121.48243,31.28125],["虹口足球场",121.47915,31.27139],["东宝兴路",121.4802,31.25989],["宝山路",121.4763,31.25152],["上海火车站",121.45794,31.24963],["中潭路",121.441,31.25457],["镇坪路",121.42978,31.24637],["曹杨路",121.4177,31.2393],["金沙江路",121.4132,31.23215],["中山公园",121.41577,31.21795],["延安西路",121.41706,31.20962],["虹桥路",121.42081,31.19752],["宜山路",121.42719,31.18672],["漕溪路",121.43841,31.17675],["龙漕路",121.44438,31.16946],["石龙路",121.44321,31.15795],["上海南站",121.43004,31.15458]]},{"n":"4","l":"","s":[["宜山路",121.42719,31.18672],["虹桥路",121.42081,31.19752],["延安西路",121.41706,31.20962],["中山公园",121.41577,31.21795],["金沙江路",121.4132,31.23215],["曹杨路",121.4177,31.2393],["镇坪路",121.42978,31.24637],["中潭路",121.441,31.25457],["上海火车站",121.45794,31.24963],["宝山路",121.4763,31.25152],["海伦路",121.4887,31.2593],["临平路",121.5007,31.26087],["大连路",121.51309,31.25794],["杨树浦路",121.51721,31.25193],["浦东大道",121.5193,31.24031],["世纪大道",121.52721,31.22868],["向城路",121.53208,31.22228],["蓝村路",121.52763,31.21167],["塘桥",121.51869,31.20976],["南浦大桥",121.49972,31.2085],["西藏南路",121.48955,31.20197],["鲁班路",121.47515,31.19922],["大木桥路",121.46328,31.19406],["东安路",121.4549,31.19082],["上海体育场",121.44353,31.1856],["上海体育馆",121.43742,31.18281]]},{"n":"5","l":"","s":[["莘庄",121.38537,31.11115],["春申路",121.38582,31.09825],["银都路",121.39026,31.08935],["颛桥",121.40187,31.06701],["北桥",121.41005,31.04511],["剑川路",121.41658,31.02648],["东川路",121.4199,31.0182],["金平路",121.41019,31.01128],["华宁路",121.39526,31.00747],["文井路",121.38077,31.0036],["闵行开发区",121.36971,31.00063]]},{"n":"5","l":"","s":[["莘庄",121.38537,31.11115],["春申路",121.38582,31.09825],["银都路",121.39026,31.08935],["颛桥",121.40187,31.06701],["北桥",121.41005,31.04511],["剑川路",121.41658,31.02648],["东川路",121.4199,31.0182],["江川路",121.42347,31.00543],["西渡",121.43244,30.98935],["萧塘",121.44186,30.96589],["奉浦大道",121.44898,30.94205],["环城东路",121.4632,30.93117],["望园路",121.48358,30.93194],["金海湖",121.49251,30.92881],["奉贤新城",121.49629,30.91392]]},{"n":"6","l":"","s":[["东方体育中心",121.4803,31.15337],["灵岩南路",121.49529,31.14867],["上南路",121.50645,31.14882],["华夏西路",121.51454,31.14988],["高青路",121.51579,31.15991],["东明路",121.51087,31.17265],["高科西路",121.50984,31.18576],["临沂新村",121.51669,31.1932],["上海儿童医学中心",121.52348,31.20328],["蓝村路",121.52763,31.21167],["浦电路",121.52935,31.22015],["世纪大道",121.52721,31.22868],["源深体育中心",121.53464,31.233],["民生路",121.54353,31.23585],["北洋泾路",121.55231,31.23915],["德平路",121.56424,31.2454],["云山路",121.57115,31.25097],["金桥路",121.58182,31.25708],["博兴路",121.58669,31.26352],["五莲路",121.58787,31.27202],["巨峰路",121.58836,31.28068],["东靖路",121.58874,31.29068],["五洲大道",121.58921,31.30257],["洲海路",121.5894,31.31223],["外高桥保税区南",121.60196,31.32158],["航津路",121.59397,31.33537],["外高桥保税区北",121.58693,31.3478],["港城路",121.57502,31.35322]]},{"n":"7","l":"","s":[["花木路",121.56275,31.21121],["龙阳路",121.55763,31.20358],["芳华路",121.55012,31.19311],["锦绣路",121.54004,31.18759],["杨高南路",121.52454,31.18761],["高科西路",121.50984,31.18576],["云台路",121.50044,31.18221],["耀华路",121.49461,31.17851],["长清路",121.48777,31.17445],["后滩",121.47376,31.17192],["龙华中路",121.45706,31.18438],["东安路",121.4549,31.19082],["肇嘉浜路",121.45021,31.19944],["常熟路",121.44914,31.21352],["静安寺",121.44653,31.22323],["昌平路",121.44262,31.23375],["长寿路",121.43827,31.24086],["镇坪路",121.42978,31.24637],["岚皋路",121.42194,31.2562],["新村路",121.42267,31.26385],["大华三路",121.42295,31.27405],["行知路",121.42177,31.2845],["大场镇",121.41616,31.29326],["场中路",121.41346,31.30368],["上大路",121.40869,31.31497],["南陈路",121.39842,31.32174],["上海大学",121.38888,31.32059],["祁华路",121.37353,31.32239],["顾村公园",121.37301,31.34459],["刘行",121.36238,31.35759],["潘广路",121.35585,31.36418],["罗南新村",121.35747,31.38883],["美兰湖",121.34989,31.40189]]},{"n":"8","l":"","s":[["沈杜公路",121.51227,31.06143],["联航路",121.51059,31.07357],["江月路",121.5086,31.08425],["浦江镇",121.50627,31.09659],["芦恒路",121.49826,31.11907],["凌兆新村",121.48966,31.1413],["东方体育中心",121.4803,31.15337],["杨思",121.49344,31.16105],["成山路",121.49622,31.17074],["耀华路",121.49461,31.17851],["中华艺术宫",121.49363,31.18524],["西藏南路",121.48955,31.20197],["陆家浜路",121.48611,31.21179],["老西门",121.48379,31.21901],["大世界",121.47918,31.22739],["人民广场",121.47511,31.23269],["曲阜路",121.47154,31.24231],["中兴路",121.46903,31.25323],["西藏北路",121.46882,31.26345],["虹口足球场",121.47915,31.27139],["曲阳路",121.49114,31.27652],["四平路",121.50149,31.27488],["鞍山新村",121.50969,31.27324],["江浦路",121.51838,31.27495],["黄兴路",121.5284,31.27881],["延吉中路",121.53494,31.28854],["黄兴公园",121.53338,31.29539],["翔殷路",121.53197,31.305],["嫩江路",121.53195,31.3148],["市光路",121.53193,31.32272]]},{"n":"9","l":"","s":[["曹路",121.68315,31.2713],["民雷路",121.66813,31.26834],["顾唐路",121.65646,31.26607],["金海路",121.63863,31.26314],["金吉路",121.62874,31.2643],["金桥",121.61134,31.26085],["台儿庄路",121.59746,31.25283],["蓝天路",121.578,31.24103],["芳甸路",121.55843,31.23184],["杨高中路",121.54866,31.22751],["世纪大道",121.52721,31.22868],["商城路",121.51627,31.23026],["小南门",121.4984,31.21687],["陆家浜路",121.48611,31.21179],["马当路",121.47726,31.20952],["打浦桥",121.46868,31.20631],["嘉善路",121.4607,31.20282],["肇嘉浜路",121.45021,31.19944],["徐家汇",121.4366,31.19551],["宜山路",121.42719,31.18672],["桂林路",121.41806,31.17479],["漕河泾开发区",121.39777,31.17064],["合川路",121.38477,31.16654],["星中路",121.3689,31.15811],["七宝",121.34922,31.15529],["中春路",121.3346,31.14977],["九亭",121.31942,31.13725],["泗泾",121.26025,31.11827],["佘山",121.22969,31.1041],["洞泾",121.23047,31.08449],["松江大学城",121.23258,31.05398],["松江新城",121.23074,31.03029],["松江体育中心",121.23055,31.01601],["醉白池",121.22936,31.00112],["上海松江站",121.23088,30.98482]]},{"n":"10","l":"航中路-基隆路","s":[["基隆路",121.59041,31.35131],["港城路",121.57502,31.35322],["高桥",121.56297,31.35262],["高桥西",121.54928,31.35149],["双江路",121.53942,31.3536],["国帆路",121.51317,31.33955],["新江湾城",121.50695,31.3285],["殷高东路",121.5068,31.32177],["三门路",121.50834,31.31321],["江湾体育场",121.51331,31.30429],["五角场",121.51463,31.29804],["国权路",121.51002,31.28928],["同济大学",121.50636,31.28209],["四平路",121.50149,31.27488],["邮电新村",121.49425,31.26843],["海伦路",121.4887,31.2593],["四川北路",121.48421,31.25203],["天潼路",121.48232,31.24382],["南京东路",121.48463,31.2381],["豫园",121.48743,31.228],["老西门",121.48379,31.21901],["一大会址·新天地",121.47518,31.21637],["陕西南路",121.45874,31.21515],["上海图书馆",121.44436,31.20796],["交通大学",121.43525,31.20221],["虹桥路",121.42081,31.19752],["宋园路",121.41208,31.19654],["伊犁路",121.4039,31.19888],["水城路",121.39226,31.19948],["龙溪路",121.38003,31.1944],["龙柏新村",121.37048,31.17688],["紫藤路",121.36483,31.16967],["航中路",121.35534,31.16542]]},{"n":"10","l":"虹桥火车站-基隆路","s":[["基隆路",121.59041,31.35131],["港城路",121.57502,31.35322],["高桥",121.56297,31.35262],["高桥西",121.54928,31.35149],["双江路",121.53942,31.3536],["国帆路",121.51317,31.33955],["新江湾城",121.50695,31.3285],["殷高东路",121.5068,31.32177],["三门路",121.50834,31.31321],["江湾体育场",121.51331,31.30429],["五角场",121.51463,31.29804],["国权路",121.51002,31.28928],["同济大学",121.50636,31.28209],["四平路",121.50149,31.27488],["邮电新村",121.49425,31.26843],["海伦路",121.4887,31.2593],["四川北路",121.48421,31.25203],["天潼路",121.48232,31.24382],["南京东路",121.48463,31.2381],["豫园",121.48743,31.228],["老西门",121.48379,31.21901],["一大会址·新天地",121.47518,31.21637],["陕西南路",121.45874,31.21515],["上海图书馆",121.44436,31.20796],["交通大学",121.43525,31.20221],["虹桥路",121.42081,31.19752],["宋园路",121.41208,31.19654],["伊犁路",121.4039,31.19888],["水城路",121.39226,31.19948],["龙溪路",121.38003,31.1944],["上海动物园",121.36814,31.19025],["虹桥1号航站楼",121.34737,31.19136],["虹桥2号航站楼",121.32444,31.19405],["虹桥火车站",121.31895,31.19402]]},{"n":"11","l":"嘉定北-迪士尼","s":[["嘉定北",121.23735,31.39155],["嘉定西",121.22786,31.37711],["白银路",121.24535,31.34536],["嘉定新城",121.25429,31.33006],["马陆",121.27691,31.31968],["陈翔公路",121.30679,31.30648],["南翔",121.32314,31.29695],["桃浦新村",121.34962,31.2816],["武威路",121.36468,31.27665],["祁连山路",121.37604,31.27165],["李子园",121.38997,31.26902],["上海西站",121.40093,31.26269],["真如",121.40722,31.25077],["枫桥路",121.4114,31.24185],["曹杨路",121.4177,31.2393],["隆德路",121.42358,31.23051],["江苏路",121.43064,31.22041],["交通大学",121.43525,31.20221],["徐家汇",121.4366,31.19551],["上海游泳馆",121.44142,31.17912],["龙华",121.45296,31.17267],["云锦路",121.45852,31.16649],["龙耀路",121.4597,31.15972],["东方体育中心",121.4803,31.15337],["三林",121.5118,31.14322],["三林东",121.523,31.14646],["浦三路",121.53901,31.15086],["康恒路",121.5537,31.15423],["御桥",121.57091,31.15813],["罗山路",121.59315,31.15326],["秀沿路",121.59839,31.13813],["康新公路",121.6172,31.13044],["迪士尼",121.66796,31.14126]]},{"n":"11","l":"花桥-迪士尼","s":[["迪士尼",121.66796,31.14126],["康新公路",121.6172,31.13044],["秀沿路",121.59839,31.13813],["罗山路",121.59315,31.15326],["御桥",121.57091,31.15813],["康恒路",121.5537,31.15423],["浦三路",121.53901,31.15086],["三林东",121.523,31.14646],["三林",121.5118,31.14322],["东方体育中心",121.4803,31.15337],["龙耀路",121.4597,31.15972],["云锦路",121.45852,31.16649],["龙华",121.45296,31.17267],["上海游泳馆",121.44142,31.17912],["徐家汇",121.4366,31.19551],["交通大学",121.43525,31.20221],["江苏路",121.43064,31.22041],["隆德路",121.42358,31.23051],["曹杨路",121.4177,31.2393],["枫桥路",121.4114,31.24185],["真如",121.40722,31.25077],["上海西站",121.40093,31.26269],["李子园",121.38997,31.26902],["祁连山路",121.37604,31.27165],["武威路",121.36468,31.27665],["桃浦新村",121.34962,31.2816],["南翔",121.32314,31.29695],["陈翔公路",121.30679,31.30648],["马陆",121.27691,31.31968],["嘉定新城",121.25429,31.33006],["上海赛车场",121.2261,31.3319],["昌吉东路",121.20038,31.29362],["上海汽车城",121.18074,31.2854],["安亭",121.16199,31.28849],["兆丰路",121.15032,31.28905],["光明路",121.11719,31.29621],["花桥",121.10441,31.29879]]},{"n":"12","l":"","s":[["七莘路",121.36246,31.13163],["虹莘路",121.38035,31.13745],["顾戴路",121.39185,31.14089],["东兰路",121.39192,31.15583],["虹梅路",121.39725,31.16035],["虹漕路",121.41055,31.16403],["桂林公园",121.41965,31.16699],["漕宝路",121.43314,31.16834],["龙漕路",121.44438,31.16946],["龙华",121.45296,31.17267],["龙华中路",121.45706,31.18438],["大木桥路",121.46328,31.19406],["嘉善路",121.4607,31.20282],["陕西南路",121.45874,31.21515],["南京西路",121.45997,31.22985],["汉中路",121.4587,31.24188],["曲阜路",121.47154,31.24231],["天潼路",121.48232,31.24382],["国际客运中心",121.49816,31.25016],["提篮桥",121.5068,31.25352],["大连路",121.51309,31.25794],["江浦公园",121.5237,31.26457],["宁国路",121.53235,31.26857],["隆昌路",121.54469,31.27521],["爱国路",121.55266,31.27979],["复兴岛",121.56131,31.28078],["东陆路",121.57912,31.28253],["巨峰路",121.58836,31.28068],["杨高北路",121.60296,31.28009],["金京路",121.61548,31.27982],["申江路",121.62686,31.28023],["金海路",121.63863,31.26314]]},{"n":"13","l":"","s":[["金运路",121.31931,31.24099],["金沙江西路",121.33516,31.24115],["丰庄",121.35514,31.24255],["祁连山南路",121.36728,31.23763],["真北路",121.38195,31.23223],["大渡河路",121.39443,31.23175],["金沙江路",121.4132,31.23215],["隆德路",121.42358,31.23051],["武宁路",121.4305,31.23435],["长寿路",121.43827,31.24086],["江宁路",121.44483,31.24428],["汉中路",121.4587,31.24188],["自然博物馆",121.46237,31.23645],["南京西路",121.45997,31.22985],["淮海中路",121.46436,31.22006],["一大会址·新天地",121.47518,31.21637],["马当路",121.47726,31.20952],["世博会博物馆",121.48159,31.19757],["世博大道",121.48431,31.18279],["长清路",121.48777,31.17445],["成山路",121.49622,31.17074],["东明路",121.51087,31.17265],["华鹏路",121.52657,31.17628],["下南路",121.54019,31.17929],["北蔡",121.55202,31.18013],["陈春路",121.55819,31.17509],["莲溪路",121.56641,31.16911],["华夏中路",121.58311,31.17576],["中科路",121.60246,31.17886],["学林路",121.61436,31.18348],["张江路",121.62918,31.18913]]},{"n":"14","l":"","s":[["封浜",121.29701,31.26749],["乐秀路",121.3141,31.26536],["临洮路",121.33086,31.26306],["嘉怡路",121.3457,31.25919],["定边路",121.3624,31.25639],["真新新村",121.37195,31.25557],["真光路",121.38416,31.25328],["铜川路",121.39704,31.25073],["真如",121.40722,31.25077],["中宁路",121.41454,31.24506],["曹杨路",121.4177,31.2393],["武宁路",121.4305,31.23435],["武定路",121.43616,31.2273],["静安寺",121.44653,31.22323],["一大会址·黄陂南路",121.4729,31.2239],["大世界",121.47918,31.22739],["豫园",121.48743,31.228],["陆家嘴",121.50213,31.23826],["浦东南路",121.51241,31.23853],["浦东大道",121.5193,31.24031],["源深路",121.53102,31.24132],["昌邑路",121.5401,31.24394],["歇浦路",121.55151,31.25073],["云山路",121.57115,31.25097],["蓝天路",121.578,31.24103],["黄杨路",121.59101,31.234],["云顺路",121.60034,31.23706],["浦东足球场",121.61543,31.24164],["金粤路",121.62902,31.24209],["桂桥路",121.63509,31.24942]]},{"n":"15","l":"","s":[["顾村公园",121.37301,31.34459],["锦秋路",121.38177,31.32018],["丰翔路",121.38087,31.30822],["南大路",121.38035,31.29926],["祁安路",121.38481,31.29156],["古浪路",121.39222,31.28451],["武威东路",121.39209,31.27565],["上海西站",121.40093,31.26269],["铜川路",121.39704,31.25073],["梅岭北路",121.397,31.2433],["大渡河路",121.39443,31.23175],["长风公园",121.39632,31.22525],["娄山关路",121.40406,31.21116],["红宝石路",121.39837,31.19886],["姚虹路",121.40641,31.19155],["吴中路",121.4139,31.18435],["桂林路",121.41806,31.17479],["桂林公园",121.41965,31.16699],["上海南站",121.43004,31.15458],["华东理工大学",121.42899,31.14426],["罗秀路",121.43581,31.13155],["朱梅路",121.4378,31.12436],["景洪路",121.44431,31.10982],["虹梅南路",121.43306,31.10384],["景西路",121.41876,31.09973],["曙建路",121.4179,31.09062],["双柏路",121.42175,31.08321],["元江路",121.4319,31.06282],["永德路",121.4432,31.03915],["紫竹高新区",121.45122,31.02319]]},{"n":"16","l":"","s":[["龙阳路",121.55763,31.20358],["华夏中路",121.58311,31.17576],["罗山路",121.59315,31.15326],["周浦东",121.60689,31.11004],["鹤沙航城",121.61124,31.0778],["航头东",121.61749,31.05492],["新场",121.64898,31.04556],["野生动物园",121.69922,31.05033],["惠南",121.76168,31.05383],["惠南东",121.7938,31.02645],["书院",121.85052,30.95926],["临港大道",121.91085,30.92352],["滴水湖",121.92958,30.90724]]},{"n":"17","l":"","s":[["虹桥火车站",121.31895,31.19402],["国家会展中心",121.29304,31.19168],["蟠龙路",121.27864,31.18633],["徐盈路",121.25398,31.1781],["徐泾北城",121.24167,31.17552],["嘉松中路",121.22392,31.1641],["赵巷",121.19228,31.16125],["汇金路",121.15166,31.16122],["青浦新城",121.12567,31.15892],["漕盈路",121.09689,31.16047],["淀山湖大道",121.08213,31.13446],["朱家角",121.04899,31.10059],["东方绿舟",121.01953,31.09854],["西岑",120.96416,31.07053]]},{"n":"18","l":"","s":[["康文路",121.41933,31.33532],["呼兰路",121.43771,31.3397],["爱辉路",121.44933,31.34415],["长江西路",121.47526,31.34577],["通南路",121.47964,31.33768],["长江南路",121.49148,31.33206],["殷高路",121.49556,31.32171],["上海财经大学",121.49633,31.30767],["复旦大学",121.49953,31.29635],["国权路",121.51002,31.28928],["抚顺路",121.51579,31.28366],["江浦路",121.51838,31.27495],["江浦公园",121.5237,31.26457],["平凉路",121.5267,31.25904],["丹阳路",121.53116,31.25381],["昌邑路",121.5401,31.24394],["民生路",121.54353,31.23585],["杨高中路",121.54866,31.22751],["迎春路",121.551,31.221],["龙阳路",121.55763,31.20358],["芳芯路",121.55923,31.19116],["北中路",121.56136,31.18276],["莲溪路",121.56641,31.16911],["御桥",121.57091,31.15813],["康桥",121.56731,31.13424],["周浦",121.56761,31.11413],["繁荣路",121.57055,31.10255],["沈梅路",121.58059,31.09111],["鹤涛路",121.58596,31.07186],["下沙",121.58899,31.0544],["航头",121.59608,31.0373]]},{"n":"磁浮线","l":"","s":[["浦东1号2号航站楼",121.80559,31.15096],["龙阳路",121.55763,31.20358]]},{"n":"浦江线","l":"","s":[["沈杜公路",121.51227,31.06143],["三鲁公路",121.52739,31.05611],["闵瑞路",121.53032,31.04796],["浦航路",121.53059,31.04099],["东城一路",121.53209,31.03039],["汇臻路",121.52456,31.02525]]},{"n":"市域机场线","l":"","s":[["虹桥2号航站楼",121.32444,31.19405],["中春路",121.3346,31.14977],["景洪路",121.44431,31.10982],["三林南",121.48685,31.12604],["康桥东",121.61489,31.14681],["上海国际旅游度假区",121.67973,31.15618],["浦东1号2号航站楼",121.80559,31.15096]]}],"py":{"xinzhuang":"莘庄","waihuanlu":"外环路","lianhualu":"莲花路","jinjiangleyuan":"锦江乐园","shanghainanzhan":"上海南站","caobaolu":"漕宝路","shanghaitiyuguan":"上海体育馆","xujiahui":"徐家汇","hengshanlu":"衡山路","changshulu":"常熟路","shaanxinanlu":"陕西南路","yidahuizhihuangpinanlu":"一大会址·黄陂南路","renminguangchang":"人民广场","xinzhalu":"新闸路","hanzhonglu":"汉中路","shanghaihuochezhan":"上海火车站","zhongshanbeilu":"中山北路","yanchanglu":"延长路","shanghaimaxicheng":"上海马戏城","wenshuilu":"汶水路","pengpuxincun":"彭浦新村","gongkanglu":"共康路","tonghexincun":"通河新村","hulanlu":"呼兰路","gongfuxincun":"共富新村","baoangonglu":"宝安公路","youyixilu":"友谊西路","fujinlu":"富锦路","pudonghaohaohangzhanlou":"浦东1号2号航站楼","haitiansanlu":"海天三路","yuandongdadao":"远东大道","lingkonglu":"凌空路","chuansha":"川沙","huaxiadonglu":"华夏东路","chuangxinzhonglu":"创新中路","tangzhen":"唐镇","guanglanlu":"广兰路","jinkelu":"金科路","zhangjianggaoke":"张江高科","longyanglu":"龙阳路","shijigongyuan":"世纪公园","shanghaikejiguan":"上海科技馆","shijidadao":"世纪大道","pudongnanluyuandongchanglu":"浦东南路","lujiazui":"陆家嘴","nanjingdonglu":"南京东路","nanjingxilu":"南京西路","jingansi":"静安寺","jiangsulu":"江苏路","zhongshangongyuan":"中山公园","loushanguanlu":"娄山关路","weininglu":"威宁路","beixinjing":"北新泾","songhonglu":"淞虹路","hongqiaohaohangzhanlou":"虹桥2号航站楼","hongqiaohuochezhan":"虹桥火车站","guojiahuizhanzhongxinhaoxian":"国家会展中心","panxiangluguojiakuaijixueyuan":"蟠祥路·国家会计学院","jiangyangbeilu":"江杨北路","tielilu":"铁力路","youyilu":"友谊路","baoyanglu":"宝杨路","shuichanlu":"水产路","songbinlu":"淞滨路","zhanghuabang":"张华浜","songfalu":"淞发路","changjiangnanlu":"长江南路","yingaoxilu":"殷高西路","jiangwanzhen":"江湾镇","dabaishu":"大柏树","chifenglu":"赤峰路","hongkouzuqiuchang":"虹口足球场","dongbaoxinglu":"东宝兴路","baoshanlu":"宝山路","zhongtanlu":"中潭路","zhenpinglu":"镇坪路","caoyanglu":"曹杨路","jinshajianglu":"金沙江路","yananxilu":"延安西路","hongqiaolu":"虹桥路","yishanlu":"宜山路","caoxilu":"漕溪路","longcaolu":"龙漕路","shilonglu":"石龙路","hailunlu":"海伦路","linpinglu":"临平路","dalianlu":"大连路","yangshupulu":"杨树浦路","pudongdadao":"浦东大道","xiangchenglu":"向城路","lancunlu":"蓝村路","tangqiao":"塘桥","nanpudaqiao":"南浦大桥","xizangnanlu":"西藏南路","lubanlu":"鲁班路","damuqiaolu":"大木桥路","donganlu":"东安路","shanghaitiyuchang":"上海体育场","chunshenlu":"春申路","yindulu":"银都路","zhuanqiao":"颛桥","beiqiao":"北桥","jianchuanlu":"剑川路","dongchuanlu":"东川路","jinpinglu":"金平路","huaninglu":"华宁路","wenjinglu":"文井路","minhangkaifaqu":"闵行开发区","jiangchuanlu":"江川路","xidu":"西渡","xiaotang":"萧塘","fengpudadao":"奉浦大道","huanchengdonglu":"环城东路","wangyuanlu":"望园路","jinhaihu":"金海湖","fengxianxincheng":"奉贤新城","dongfangtiyuzhongxin":"东方体育中心","lingyannanlu":"灵岩南路","shangnanlu":"上南路","huaxiaxilu":"华夏西路","gaoqinglu":"高青路","dongminglu":"东明路","gaokexilu":"高科西路","linyixincun":"临沂新村","shanghaiertongyixuezhongxin":"上海儿童医学中心","pudianlu":"浦电路","yuanshentiyuzhongxin":"源深体育中心","minshenglu":"民生路","beiyangjinglu":"北洋泾路","depinglu":"德平路","yunshanlu":"云山路","jinqiaolu":"金桥路","boxinglu":"博兴路","wulianlu":"五莲路","jufenglu":"巨峰路","dongjinglu":"东靖路","wuzhoudadao":"五洲大道","zhouhailu":"洲海路","waigaoqiaobaoshuiqunan":"外高桥保税区南","hangjinlu":"航津路","waigaoqiaobaoshuiqubei":"外高桥保税区北","gangchenglu":"港城路","huamulu":"花木路","fanghualu":"芳华路","jinxiulu":"锦绣路","yanggaonanlu":"杨高南路","yuntailu":"云台路","yaohualu":"耀华路","changqinglu":"长清路","houtan":"后滩","longhuazhonglu":"龙华中路","zhaojiabanglu":"肇嘉浜路","changpinglu":"昌平路","changshoulu":"长寿路","langaolu":"岚皋路","xincunlu":"新村路","dahuasanlu":"大华三路","xingzhilu":"行知路","dachangzhen":"大场镇","changzhonglu":"场中路","shangdalu":"上大路","nanchenlu":"南陈路","shanghaidaxue":"上海大学","qihualu":"祁华路","gucungongyuan":"顾村公园","liuhang":"刘行","panguanglu":"潘广路","luonanxincun":"罗南新村","meilanhu":"美兰湖","shendugonglu":"沈杜公路","lianhanglu":"联航路","jiangyuelu":"江月路","pujiangzhen":"浦江镇","luhenglu":"芦恒路","lingzhaoxincun":"凌兆新村","yangsi":"杨思","chengshanlu":"成山路","zhonghuayishugong":"中华艺术宫","lujiabanglu":"陆家浜路","laoximen":"老西门","dashijie":"大世界","qufulu":"曲阜路","zhongxinglu":"中兴路","xizangbeilu":"西藏北路","quyanglu":"曲阳路","sipinglu":"四平路","anshanxincun":"鞍山新村","jiangpulu":"江浦路","huangxinglu":"黄兴路","yanjizhonglu":"延吉中路","huangxinggongyuan":"黄兴公园","xiangyinlu":"翔殷路","nenjianglu":"嫩江路","shiguanglu":"市光路","caolu":"曹路","minleilu":"民雷路","gutanglu":"顾唐路","jinhailu":"金海路","jinjilu":"金吉路","jinqiao":"金桥","taierzhuanglu":"台儿庄路","lantianlu":"蓝天路","fangdianlu":"芳甸路","yanggaozhonglu":"杨高中路","shangchenglu":"商城路","xiaonanmen":"小南门","madanglu":"马当路","dapuqiao":"打浦桥","jiashanlu":"嘉善路","guilinlu":"桂林路","caohejingkaifaqu":"漕河泾开发区","hechuanlu":"合川路","xingzhonglu":"星中路","qibao":"七宝","zhongchunlu":"中春路","jiuting":"九亭","sijing":"泗泾","sheshan":"佘山","dongjing":"洞泾","songjiangdaxuecheng":"松江大学城","songjiangxincheng":"松江新城","songjiangtiyuzhongxin":"松江体育中心","zuibaichi":"醉白池","shanghaisongjiangzhan":"上海松江站","jilonglu":"基隆路","gaoqiao":"高桥","gaoqiaoxi":"高桥西","shuangjianglu":"双江路","guofanlu":"国帆路","xinjiangwancheng":"新江湾城","yingaodonglu":"殷高东路","sanmenlu":"三门路","jiangwantiyuchang":"江湾体育场","wujiaochang":"五角场","guoquanlu":"国权路","tongjidaxue":"同济大学","youdianxincun":"邮电新村","sichuanbeilu":"四川北路","tiantonglu":"天潼路","yuyuan":"豫园","yidahuizhixintiandi":"一大会址·新天地","shanghaitushuguan":"上海图书馆","jiaotongdaxue":"交通大学","songyuanlu":"宋园路","yililu":"伊犁路","shuichenglu":"水城路","longxilu":"龙溪路","longbaixincun":"龙柏新村","zitenglu":"紫藤路","hangzhonglu":"航中路","shanghaidongwuyuan":"上海动物园","jiadingbei":"嘉定北","jiadingxi":"嘉定西","baiyinlu":"白银路","jiadingxincheng":"嘉定新城","malu":"马陆","chenxianggonglu":"陈翔公路","nanxiang":"南翔","taopuxincun":"桃浦新村","wuweilu":"武威路","qilianshanlu":"祁连山路","liziyuan":"李子园","shanghaixizhan":"上海西站","zhenru":"真如","fengqiaolu":"枫桥路","longdelu":"隆德路","shanghaiyouyongguan":"上海游泳馆","longhua":"龙华","yunjinlu":"云锦路","longyaolu":"龙耀路","sanlin":"三林","sanlindong":"三林东","pusanlu":"浦三路","kanghenglu":"康恒路","yuqiao":"御桥","luoshanlu":"罗山路","xiuyanlu":"秀沿路","kangxingonglu":"康新公路","dishini":"迪士尼","shanghaisaichechang":"上海赛车场","changjidonglu":"昌吉东路","shanghaiqichecheng":"上海汽车城","anting":"安亭","zhaofenglu":"兆丰路","guangminglu":"光明路","huaqiao":"花桥","qixinlu":"七莘路","hongxinlu":"虹莘路","gudailu":"顾戴路","donglanlu":"东兰路","hongmeilu":"虹梅路","hongcaolu":"虹漕路","guilingongyuan":"桂林公园","guojikeyunzhongxin":"国际客运中心","tilanqiao":"提篮桥","jiangpugongyuan":"江浦公园","ningguolu":"宁国路","longchanglu":"隆昌路","aiguolu":"爱国路","fuxingdao":"复兴岛","donglulu":"东陆路","yanggaobeilu":"杨高北路","jinjinglu":"金京路","shenjianglu":"申江路","jinyunlu":"金运路","jinshajiangxilu":"金沙江西路","fengzhuang":"丰庄","qilianshannanlu":"祁连山南路","zhenbeilu":"真北路","daduhelu":"大渡河路","wuninglu":"武宁路","jiangninglu":"江宁路","ziranbowuguan":"自然博物馆","huaihaizhonglu":"淮海中路","shibohuibowuguan":"世博会博物馆","shibodadao":"世博大道","huapenglu":"华鹏路","xiananlu":"下南路","beicai":"北蔡","chenchunlu":"陈春路","lianxilu":"莲溪路","huaxiazhonglu":"华夏中路","zhongkelu":"中科路","xuelinlu":"学林路","zhangjianglu":"张江路","fengbang":"封浜","lexiulu":"乐秀路","lintaolu":"临洮路","jiayilu":"嘉怡路","dingbianlu":"定边路","zhenxinxincun":"真新新村","zhenguanglu":"真光路","tongchuanlu":"铜川路","zhongninglu":"中宁路","wudinglu":"武定路","pudongnanlu":"浦东南路","yuanshenlu":"源深路","changyilu":"昌邑路","xiepulu":"歇浦路","huangyanglu":"黄杨路","yunshunlu":"云顺路","pudongzuqiuchang":"浦东足球场","jinyuelu":"金粤路","guiqiaolu":"桂桥路","jinqiulu":"锦秋路","fengxianglu":"丰翔路","nandalu":"南大路","qianlu":"祁安路","gulanglu":"古浪路","wuweidonglu":"武威东路","meilingbeilu":"梅岭北路","changfenggongyuan":"长风公园","hongbaoshilu":"红宝石路","yaohonglu":"姚虹路","wuzhonglu":"吴中路","huadongligongdaxue":"华东理工大学","luoxiulu":"罗秀路","zhumeilu":"朱梅路","jinghonglu":"景洪路","hongmeinanlu":"虹梅南路","jingxilu":"景西路","shujianlu":"曙建路","shuangbailu":"双柏路","yuanjianglu":"元江路","yongdelu":"永德路","zizhugaoxinqu":"紫竹高新区","zhoupudong":"周浦东","heshahangcheng":"鹤沙航城","hangtoudong":"航头东","xinchang":"新场","yeshengdongwuyuan":"野生动物园","huinan":"惠南","huinandong":"惠南东","shuyuan":"书院","lingangdadao":"临港大道","dishuihu":"滴水湖","panlonglu":"蟠龙路","xuyinglu":"徐盈路","xujingbeicheng":"徐泾北城","jiasongzhonglu":"嘉松中路","zhaoxiang":"赵巷","huijinlu":"汇金路","qingpuxincheng":"青浦新城","caoyinglu":"漕盈路","dianshanhudadao":"淀山湖大道","zhujiajiao":"朱家角","dongfanglvzhou":"东方绿舟","xicen":"西岑","kangwenlu":"康文路","aihuilu":"爱辉路","changjiangxilu":"长江西路","tongnanlu":"通南路","yingaolu":"殷高路","shanghaicaijingdaxue":"上海财经大学","fudandaxue":"复旦大学","fushunlu":"抚顺路","pinglianglu":"平凉路","danyanglu":"丹阳路","yingchunlu":"迎春路","fangxinlu":"芳芯路","beizhonglu":"北中路","kangqiao":"康桥","zhoupu":"周浦","fanronglu":"繁荣路","shenmeilu":"沈梅路","hetaolu":"鹤涛路","xiasha":"下沙","hangtou":"航头","sanlugonglu":"三鲁公路","minruilu":"闵瑞路","puhanglu":"浦航路","dongchengyilu":"东城一路","huizhenlu":"汇臻路","sanlinnan":"三林南","kangqiaodong":"康桥东","shanghaiguojilvyoudujiaqu":"上海国际旅游度假区"}};
+const EXAMPLE = {"vols":[["Vol 1","Line 10‐殷高东路 Yin'ao East Road","taxi","Wednesday Afternoon┋Friday Evening (After 6pm)┋Saturday Afternoon┋Sunday Afternoon"],["Vol 2","Line 13‐华鹏路 Hua Peng Road","bus","Saturday Morning"],["Vol 3","Line 10‐国权路 Guoquan Road","Bike","Friday Evening (After 6pm)"],["Vol 4","Line 2‐龙阳路站Longyang Road Station","Bike from my house to metro station","Friday Evening (After 6pm)┋Saturday Morning┋Saturday Afternoon┋Sunday Morning"],["Vol 5","Line 3‐上海火车站Shanghai Railway Station","no","Monday Afternoon┋Wednesday Afternoon┋Thursday Afternoon┋Friday Evening (After 6pm)┋Saturday Morning┋Saturday Afternoon┋Sunday Morning┋Sunday Afternoon"],["Vol 6","Line 15‐紫竹高新区 Zhizhu High-tech Zone","No","Sunday Afternoon"],["Vol 7","Line 1‐呼兰路站Hulan Road Station","no","Monday Afternoon"],["Vol 8","Line 7‐岚皋路 Langao Road","no","Monday Afternoon"],["Vol 9","Line 16‐惠南 Huinan","car","Friday Evening (After 6pm)"],["Vol 10","Line 4‐延安西路站West Yan'an Road","bus and bike","Wednesday Afternoon┋Thursday Afternoon"],["Vol 11","Line 4‐延安西路站West Yan'an Road","Bus","Monday Afternoon┋Wednesday Afternoon"],["Vol 12","Line 4‐延安西路站West Yan'an Road","Bus","Monday Afternoon┋Wednesday Afternoon"],["Vol 13","Line 13‐真北路 Zhen Bei Road","car","Monday Afternoon┋Wednesday Afternoon┋Thursday Afternoon"],["Vol 14","Line 15‐紫竹高新区 Zhizhu High-tech Zone","Bus/bike/taxi","Wednesday Afternoon┋Thursday Afternoon┋Sunday Afternoon"],["Vol 15","Line 4‐延安西路站West Yan'an Road","Bus","Monday Afternoon┋Wednesday Afternoon"],["Vol 16","Line 10‐五角场 Wujiaochang","bike","Friday Evening (After 6pm)"],["Vol 17","Line 13‐江宁路 Jiang Ning Road","Car, taxi","Monday Afternoon┋Wednesday Afternoon┋Thursday Afternoon"],["Vol 18","Line 15‐桂林公园 Guilin Park","bus","Wednesday Afternoon"],["Vol 19","Line 6‐巨峰路 Jufeng Road","no","Saturday Morning┋Saturday Afternoon┋Sunday Morning┋Sunday Afternoon"],["Vol 20","Line 12‐嘉善路 Jiashan Road","no","Saturday Morning┋Saturday Afternoon┋Sunday Morning┋Sunday Afternoon"],["Vol 21","Line 7‐行知路 Xingzhi Road","no","Saturday Morning┋Saturday Afternoon┋Sunday Morning┋Sunday Afternoon"],["Vol 22","Line 2‐中山公园站Zhongshan Park Station","no","Saturday Morning┋Saturday Afternoon┋Sunday Morning┋Sunday Afternoon"],["Vol 23","Line 15‐永德路 Yongde Road","Bike, bus","Sunday Afternoon"],["Vol 24","Line 15‐永德路 Yongde Road","no","Sunday Afternoon"],["Vol 25","Line 12‐桂林公园 Guilin Park","no","Friday Evening (After 6pm)"],["Vol 26","Line 12‐桂林公园 Guilin Park","Bus","Friday Evening (After 6pm)"],["Vol 27","Line 15‐永德路 Yongde Road","Bike","Sunday Morning"],["Vol 28","Line 7‐新村路 Xincun Road","no","Monday Afternoon┋Wednesday Afternoon┋Thursday Afternoon"],["Vol 29","Line 1‐一大会址·黄陂南路站Huangpi South Road Station (Site of the First National Congress of the CPC)","car","Thursday Afternoon┋Saturday Afternoon"],["Vol 30","Line 15‐紫竹高新区 Zhizhu High-tech Zone","bike","Monday Afternoon┋Sunday Afternoon"],["Vol 31","Line 9‐蓝天路 Lantian Road","bike","Friday Evening (After 6pm)┋Sunday Afternoon"],["Vol 32","Line 2‐世纪公园站Century Park Station","No","Thursday Afternoon┋Friday Evening (After 6pm)"],["Vol 33","Line 1‐陕西南路站outh Shaanxi Road Station","no","Friday Evening (After 6pm)┋Saturday Afternoon┋Sunday Morning┋Sunday Afternoon"],["Vol 34","Line 7‐后滩 Hou Tan","no","Saturday Morning┋Sunday Morning"],["Vol 35","Line 8‐西藏北路 Tibet North Road","Bus","Saturday Afternoon┋Sunday Afternoon"],["Vol 36","Line 16‐惠南 Huinan","bus","Saturday Afternoon┋Sunday Afternoon"],["Vol 37","Line 10‐国权路 Guoquan Road  ; and ; Line 18 Shanghai university of finance and economics station","no","Saturday Morning┋Saturday Afternoon┋Sunday Morning┋Sunday Afternoon"],["Vol 38","Line 8‐人民广场 People's Square ; and ; Line 5 fengpu avenue ; and ; Line 8 shiguang road","no","Friday Evening (After 6pm)┋Saturday Morning┋Sunday Afternoon"],["Vol 39","Line 2‐陆家嘴站Lujiazui Station","Taxi","Sunday Afternoon"],["Vol 40","Line 12‐顾戴路 Gudai Road","bike","Friday Evening (After 6pm)┋Saturday Morning┋Sunday Morning┋Sunday Afternoon"]],"sites":[["1","Line 10 港城路 Gangcheng Lu","class 1","Saturday morning",2],["1","Line 10 港城路 Gangcheng Lu","class 2","Sunday morning",2],["1","Line 10 港城路 Gangcheng Lu","class 3","Sunday morning",2],["2","Line 2 华夏东路 Huaxiadong Lu ","class 1","Saturday morning",2],["2","Line 2 华夏东路 Huaxiadong Lu ","class 2","Sunday morning",2],["2","Line 2 华夏东路 Huaxiadong Lu ","class 3","Sunday afternoon",2],["3","Line 3 上海火车站 Shanghai Railway ","class 1","Friday evening",2],["3","Line 3 上海火车站 Shanghai Railway ","class 2","Saturday afternoon",2],["3","Line 3 上海火车站 Shanghai Railway ","class 3","Saturday afternoon",2],["3","Line 3 上海火车站 Shanghai Railway ","class 4","Sunday morning",2],["3","Line 3 上海火车站 Shanghai Railway ","class 5","Sunday morning",2],["3","Line 3 上海火车站 Shanghai Railway ","class 6","Sunday afternoon",2],["4","Line 15 永德路 Yongde Lu  ; or ; Line 8 沈杜公路 Shendu road","class 1","Saturday afternoon",2],["4","Line 15 永德路 Yongde Lu  ; or ; Line 8 沈杜公路 Shendu road","class 2","Sunday morning",2],["4","Line 15 永德路 Yongde Lu  ; or ; Line 8 沈杜公路 Shendu road","class 3","Sunday morning",2],["4","Line 15 永德路 Yongde Lu  ; or ; Line 8 沈杜公路 Shendu road","class 4","Sunday afternoon",2],["4","Line 15 永德路 Yongde Lu  ; or ; Line 8 沈杜公路 Shendu road","class 5","Sunday afternoon",2],["5","Line 8 虹口足球场 Hongkou Football Stadium","class 1","Saturday morning",2],["5","Line 8 虹口足球场 Hongkou Football Stadium","class 2","Saturday afternoon",2],["6","Line 11 三林 Sanlin","class 1","Saturday morning",2],["6","Line 11 三林 Sanlin","class 2","Saturday afternoon",2],["6","Line 11 三林 Sanlin","class 3","Sunday morning",2],["7","Line 2 北新泾路 Beixinjing Lu","class 1","Tuesday morning",2],["8","11号线/15号线 上海西站","class 1","Monday afternoon",2],["9","13号线 金运路/ 2号线 虹桥火车站","class 1","Wednesday afternoon",2],["10","13号线 金运路/ 2号线 淞虹路","class 1","Thursday afternoon",2],["11","11号线陈翔公路站","class 1","Wednesday afternoon",2],["14","15号线永德路或8号线沈杜公路","class 1","Monday afternoon",2],["15","17号线青浦新城","class 1","Saturday afternoon",2],["16","3号线 东宝兴路或8号线西藏北路","class 1","Saturday afternoon",2]]};
+</script>
+<script>
+/* ============================================================
+   铺路石志愿者调配  核心逻辑
+   这个文件会被内联进 index.html, 同时也能在 node 下单独跑,
+   用来和 Python 版 CP-SAT 的结果做一致性比对.
+   纯逻辑, 不碰 DOM.
+   ============================================================ */
+
+const PARAMS_DEFAULT = {
+  vBase: 29, vSlope: 8, vMax: 78, dwell: 0.5, detour: 1.13,
+  transfer: 5.5, branchTransfer: 1.5,
+  maxClassPerVolunteer: 1,
+  comfort: 60, overagePenalty: 1.5,
+};
+
+const SLOT_DAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+const SLOT_PARTS = ['上午', '下午', '晚上'];
+const ALL_SLOTS = [];
+for (const d of SLOT_DAYS) for (const p of SLOT_PARTS) ALL_SLOTS.push(d + p);
+
+const DAY_EN = { monday: '周一', tuesday: '周二', wednesday: '周三', thursday: '周四',
+                 friday: '周五', saturday: '周六', sunday: '周日' };
+const PART_EN = { morning: '上午', afternoon: '下午', evening: '晚上', night: '晚上' };
+
+const TRANSPORT_RULES = [
+  [/\btaxi\b|打车|出租/i, '打车'],
+  [/\bcar\b|自驾|开车/i, '自驾'],
+  [/\bbus\b|公交|公车/i, '公交'],
+  [/\bbike\b|bicycl|自行车|骑行|单车/i, '自行车'],
+];
+const FLEXIBLE = new Set(['自驾', '打车']);
+
+/* 无法自动解析的英文站名. 用户可以在界面上继续往里加 */
+const STATION_ALIASES = {
+  shanghaiuniversityoffinanceandeconomicsstation: '上海财经大学',
+  fengpuavenue: '奉浦大道',
+  shiguangroad: '市光路',
+};
+
+/* ---------------- 文本归一化 ---------------- */
+
+function normStationName(s) {
+  return String(s == null ? '' : s).trim().replace(/[（(][^)）]*[)）]/g, '')
+    .replace(/[\s　]/g, '');
+}
+
+function nameVariants(s) {
+  const out = [s];
+  if (s.length > 3 && s.endsWith('站') && !s.endsWith('火车站')) out.push(s.slice(0, -1));
+  else out.push(s + '站');
+  return out;
+}
+
+function normSlot(text) {
+  const raw = String(text == null ? '' : text).trim();
+  if (!raw) return null;
+  const zh = raw.replace(/[\s　]/g, '').replace('星期', '周').replace('礼拜', '周');
+  for (const d of SLOT_DAYS) {
+    if (zh.startsWith(d)) {
+      for (const p of SLOT_PARTS) if (zh.includes(p)) return d + p;
+      if (zh.includes('早')) return d + '上午';
+      if (zh.includes('夜')) return d + '晚上';
+    }
+  }
+  const t = raw.toLowerCase().replace(/[（(][^)）]*[)）]/g, ' ');
+  let day = null, part = null;
+  for (const k in DAY_EN) if (t.includes(k)) { day = DAY_EN[k]; break; }
+  for (const k in PART_EN) if (t.includes(k)) { part = PART_EN[k]; break; }
+  return (day && part) ? day + part : null;
+}
+
+function normTransport(text) {
+  const t = String(text == null ? '' : text);
+  const out = [];
+  for (const [re, val] of TRANSPORT_RULES) if (re.test(t) && !out.includes(val)) out.push(val);
+  return out.length ? out : ['无'];
+}
+
+/* 把一个单元格拆成若干「线路号 + 站名」候选.
+   需要应付的写法全部来自原始表:
+     Line 10-殷高东路 Yin'ao East Road
+     Line 10 国权路 ; Line 18 Shanghai university of finance and economics station
+     11号线/15号线 上海西站
+     13号线 金运路/ 2号线 虹桥火车站
+     15号线永德路或8号线沈杜公路
+     11号线陈翔公路站                                                   */
+function splitStationTokens(text) {
+  let s = String(text == null ? '' : text).replace(/[‐－]/g, '-');
+  s = s.replace(/[\n\r]+/g, '|').replace(/[或、;；\/]/g, '|');
+  const parts = [];
+  for (let p of s.split('|')) {
+    p = p.replace(/^[\s\-|]+|[\s\-|]+$/g, '');
+    if (!p || /^(and|or)$/i.test(p)) continue;
+    const nLine = (p.match(/\d+\s*号线|line\s*\d+/gi) || []).length;
+    if (nLine >= 2) {
+      for (let q of p.split(/\b(?:and|or)\b/i)) {
+        q = q.replace(/^[\s\-]+|[\s\-]+$/g, '');
+        if (q) parts.push(q);
+      }
+    } else parts.push(p);
+  }
+  const toks = [];
+  let pending = [];
+  for (const p of parts) {
+    const lines = [];
+    for (const m of p.matchAll(/(\d+)\s*号线/g)) lines.push(m[1]);
+    for (const m of p.matchAll(/line\s*(\d+)/gi)) lines.push(m[1]);
+    const body = p.replace(/\d+\s*号线|line\s*\d+/gi, ' ').replace(/^[\s\-]+|[\s\-]+$/g, '');
+    const hasName = /[一-鿿]/.test(body) || /[a-z]{4}/i.test(body);
+    if (!hasName && lines.length) { pending.push(...lines); continue; }
+    if (lines.length) for (const ln of lines) toks.push([ln, body]);
+    else toks.push([null, body]);
+    for (const ln of pending) toks.push([ln, body]);
+    pending = [];
+  }
+  return toks;
+}
+
+/* ---------------- 地铁通勤引擎 ---------------- */
+
+class Heap {
+  constructor() { this.a = []; }
+  get size() { return this.a.length; }
+  push(k, v) {
+    const a = this.a; a.push([k, v]); let i = a.length - 1;
+    while (i > 0) { const p = (i - 1) >> 1; if (a[p][0] <= a[i][0]) break;
+      [a[p], a[i]] = [a[i], a[p]]; i = p; }
+  }
+  pop() {
+    const a = this.a, top = a[0], last = a.pop();
+    if (a.length) { a[0] = last; let i = 0;
+      for (;;) { const l = 2 * i + 1, r = l + 1; let m = i;
+        if (l < a.length && a[l][0] < a[m][0]) m = l;
+        if (r < a.length && a[r][0] < a[m][0]) m = r;
+        if (m === i) break; [a[m], a[i]] = [a[i], a[m]]; i = m; } }
+    return top;
+  }
+}
+
+class MetroEngine {
+  constructor(topo, params) {
+    this.p = Object.assign({}, PARAMS_DEFAULT, params || {});
+    this.coord = new Map();
+    this.stationLines = new Map();   // station -> Set(lineKey)
+    this.lineOfStation = new Map();  // station -> Set(lineNo)
+    this.pinyin = topo.py || {};
+    this.nodeId = new Map();         // "station lineKey" -> int
+    this.nodeStation = [];
+    this.adj = [];
+
+    const addNode = (st, key) => {
+      const k = st + ' ' + key;
+      let id = this.nodeId.get(k);
+      if (id === undefined) { id = this.nodeStation.length; this.nodeId.set(k, id);
+        this.nodeStation.push(st); this.adj.push([]); }
+      return id;
+    };
+
+    for (const li of topo.lines) {
+      const key = li.n + '|' + (li.l || '');
+      let prev = null;
+      for (const [nm, lon, lat] of li.s) {
+        this.coord.set(nm, [lon, lat]);
+        if (!this.stationLines.has(nm)) this.stationLines.set(nm, new Set());
+        this.stationLines.get(nm).add(key);
+        if (!this.lineOfStation.has(nm)) this.lineOfStation.set(nm, new Set());
+        this.lineOfStation.get(nm).add(li.n);
+        const id = addNode(nm, key);
+        if (prev && prev.nm !== nm) {
+          const km = haversine(prev.c, [lon, lat]) * this.p.detour;
+          const t = this.segMinutes(km);
+          this.adj[prev.id].push([id, t, 0]);
+          this.adj[id].push([prev.id, t, 0]);
+        }
+        prev = { nm, c: [lon, lat], id };
+      }
+    }
+    for (const [st, keys] of this.stationLines) {
+      const ks = [...keys];
+      for (let i = 0; i < ks.length; i++) for (let j = i + 1; j < ks.length; j++) {
+        const sameNo = ks[i].split('|')[0] === ks[j].split('|')[0];
+        const t = sameNo ? this.p.branchTransfer : this.p.transfer;
+        const a = addNode(st, ks[i]), b = addNode(st, ks[j]);
+        this.adj[a].push([b, t, sameNo ? 0 : 1]);
+        this.adj[b].push([a, t, sameNo ? 0 : 1]);
+      }
+    }
+    this.cache = new Map();
+  }
+
+  segMinutes(km) {
+    const v = Math.min(this.p.vMax, this.p.vBase + this.p.vSlope * km);
+    return km / v * 60 + this.p.dwell;
+  }
+
+  query(origin, dest) {
+    if (origin === dest) return { min: 0, tr: 0 };
+    const ck = origin + '>' + dest;
+    if (this.cache.has(ck)) return this.cache.get(ck);
+    if (!this.stationLines.has(origin) || !this.stationLines.has(dest)) return null;
+    const dist = new Float64Array(this.adj.length).fill(Infinity);
+    const trs = new Int32Array(this.adj.length);
+    const h = new Heap();
+    for (const k of this.stationLines.get(origin)) {
+      const id = this.nodeId.get(origin + ' ' + k);
+      dist[id] = 0; h.push(0, id);
+    }
+    let best = null;
+    while (h.size) {
+      const [d, u] = h.pop();
+      if (d > dist[u] + 1e-9) continue;
+      if (this.nodeStation[u] === dest) { best = { min: d, tr: trs[u] }; break; }
+      for (const [v, w, isTr] of this.adj[u]) {
+        const nd = d + w;
+        if (nd < dist[v] - 1e-9) { dist[v] = nd; trs[v] = trs[u] + isTr; h.push(nd, v); }
+      }
+    }
+    this.cache.set(ck, best);
+    return best;
+  }
+
+  /* provider 接口: 换成高德实现时只要提供同名同签名的 pair() 即可 */
+  pair(origins, dests) { return this.bestPair(origins, dests); }
+
+  bestPair(origins, dests) {
+    let best = null;
+    for (const o of origins) for (const d of dests) {
+      const r = this.query(o, d);
+      if (!r) continue;
+      if (!best || r.min < best.min) best = { min: r.min, tr: r.tr, from: o, to: d };
+    }
+    return best;
+  }
+
+  /* 原始表里的站名文本 -> 网络中的站名 */
+  resolve(rawName, lineNo, aliases) {
+    aliases = aliases || STATION_ALIASES;
+    const s = String(rawName == null ? '' : rawName).trim();
+    const n = normStationName(s);
+    const keys = [s, n, s.toLowerCase().replace(/[^a-z一-鿿]/g, '')];
+    for (const k of keys) if (aliases[k]) return { st: aliases[k], how: 'alias' };
+    for (const v of nameVariants(n)) if (this.stationLines.has(v)) return { st: v, how: 'exact' };
+    const zh = n.match(/[一-鿿·]+/g) || [];
+    zh.sort((a, b) => b.length - a.length);
+    for (const frag of zh) for (const v of nameVariants(normStationName(frag)))
+      if (this.stationLines.has(v)) return { st: v, how: 'zh-substr' };
+    const latin = s.toLowerCase().replace(/[^a-z]/g, '');
+    if (latin) {
+      for (const k in this.pinyin) {
+        const v = this.pinyin[k];
+        if (k && (k === latin || (k.length > 5 && latin.includes(k)))) {
+          if (!lineNo || this.lineOfStation.get(v).has(String(lineNo)))
+            return { st: v, how: 'pinyin' };
+        }
+      }
+    }
+    if (lineNo) {
+      for (const [st, nos] of this.lineOfStation)
+        if (nos.has(String(lineNo)) && n.includes(st)) return { st, how: 'line-scan' };
+    }
+    return { st: null, how: 'unresolved' };
+  }
+}
+
+function haversine(a, b) {
+  const R = 6371, r = Math.PI / 180;
+  const p1 = a[1] * r, p2 = b[1] * r, dp = p2 - p1, dl = (b[0] - a[0]) * r;
+  const h = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+/* ---------------- 清洗层 ---------------- */
+
+const SEVERITY = { exact: null, 'zh-substr': null, alias: 'WARN', pinyin: 'WARN', 'line-scan': 'WARN' };
+
+function isLegacyTransportText(text) {
+  const t = String(text || '').trim().toLowerCase();
+  if (!t) return false;
+  if (!/[一-鿿]|line\s*\d+|\d+\s*号线/.test(t) && /\b(no|none|taxi|bus|bike|bicycle|car)\b|打车|公交|自行车|自驾|出租|公车|骑行|开车|无/.test(t))
+    return true;
+  return /^(no|none|无|taxi|bus|bike|bicycle|car|打车|公交|自行车|自驾|出租|公车|骑行|开车)([\s,;/、和andor]*(no|none|无|taxi|bus|bike|bicycle|car|打车|公交|自行车|自驾|出租|公车|骑行|开车))*$/i.test(t);
+}
+
+function resolveStations(engine, text, warn, ctx, aliases) {
+  const out = [];
+  for (const [ln, body] of splitStationTokens(text)) {
+    const { st, how } = engine.resolve(body, ln, aliases);
+    if (!st) { warn.push(['ERROR', `${ctx}: 站名无法解析 -> "${body}"${ln ? ` (${ln}号线)` : ''}`]); continue; }
+    if (!out.includes(st)) out.push(st);
+    const sev = SEVERITY[how];
+    if (sev) warn.push([sev, `${ctx}: 站名靠 ${how} 推断 -> "${body}" => ${st}, 请人工确认`]);
+    if (ln && !engine.lineOfStation.get(st).has(String(ln)))
+      warn.push(['ERROR', `${ctx}: 线路与站点不一致 -> 填 ${ln} 号线, 但 ${st} 属于 ` +
+        [...engine.lineOfStation.get(st)].join('/') + ' 号线']);
+  }
+  return out;
+}
+
+/** volRows: [id, 最近地铁站, 其他就近地铁站/换乘线路, 可用时段]  siteRows: [siteId, 地铁站, 班级, 时段, 需求] */
+function cleanInput(engine, volRows, siteRows, aliases) {
+  const warn = [];
+  const vols = [];
+  const seen = new Set();
+  volRows.forEach((r, i) => {
+    const id = String(r[0] || '').trim();
+    if (!id && !String(r[1] || '').trim()) return;
+    if (!id) { warn.push(['ERROR', `志愿者表第 ${i + 1} 行没有编号, 已跳过`]); return; }
+    if (seen.has(id)) { warn.push(['ERROR', `志愿者编号重复: ${id}`]); return; }
+    seen.add(id);
+    const ctx = `志愿者 ${id}`;
+    const extraStation = isLegacyTransportText(r[2]) ? '' : r[2];
+    const stations = resolveStations(engine, [r[1], extraStation].filter(x => String(x || '').trim()).join('; '),
+      warn, ctx, aliases);
+    const slots = [];
+    for (const piece of String(r[3] || '').split(/[┋;；,，\n]/)) {
+      const p = piece.trim();
+      if (!p) continue;
+      const s = normSlot(p);
+      if (s) { if (!slots.includes(s)) slots.push(s); }
+      else warn.push(['ERROR', `${ctx}: 时段无法解析 -> "${p}"`]);
+    }
+    if (!stations.length) warn.push(['ERROR', `${ctx}: 没有可用站点, 无法参与求解`]);
+    if (!slots.length) warn.push(['ERROR', `${ctx}: 没有可用时段, 无法参与求解`]);
+    vols.push({ id, stations, transport: ['无'], flexible: false,
+                slots: slots.sort((a, b) => ALL_SLOTS.indexOf(a) - ALL_SLOTS.indexOf(b)),
+                rawStation: [r[1], extraStation].filter(x => String(x || '').trim()).join(' ; ') });
+  });
+
+  const classes = [];
+  const sites = new Map();
+  siteRows.forEach((r, i) => {
+    const sid = String(r[0] || '').trim();
+    const cls = String(r[2] || '').trim();
+    if (!sid && !cls) return;
+    if (!sid) { warn.push(['ERROR', `班级表第 ${i + 1} 行没有项目点编号, 已跳过`]); return; }
+    if (!sites.has(sid)) {
+      sites.set(sid, { id: sid, rawStation: String(r[1] || ''),
+                       stations: resolveStations(engine, r[1], warn, `项目点 ${sid}`, aliases) });
+    }
+    const slot = normSlot(r[3]);
+    if (!slot) { warn.push(['ERROR', `项目点 ${sid} ${cls}: 上课时段无法解析 -> "${r[3]}"`]); return; }
+    const st = sites.get(sid).stations;
+    if (!st.length) warn.push(['ERROR', `项目点 ${sid}: 没有可用站点, 其班级无法参与求解`]);
+    classes.push({ site: sid, cls: cls || `class ${i + 1}`, slot,
+                   need: Math.max(1, parseInt(r[4], 10) || 2), stations: st,
+                   rawSlot: String(r[3] || '') });
+  });
+
+  const nums = [...sites.keys()].filter(s => /^\d+$/.test(s)).map(Number).sort((a, b) => a - b);
+  if (nums.length) {
+    const missing = [];
+    for (let n = nums[0]; n <= nums[nums.length - 1]; n++) if (!nums.includes(n)) missing.push(n);
+    if (missing.length) warn.push(['WARN',
+      `项目点编号断档: 缺 ${missing.join(', ')}, 无法从数据判断是录入遗漏还是项目点已关闭`]);
+  }
+  return { vols, classes, sites, warn };
+}
+
+/* ---------------- 最小费用流 ---------------- */
+/* 分层目标用「凸费用弧」编码, 与 Python 版 CP-SAT 的字典序求解等价:
+     班级 -> 汇点 第 1 条弧  费用 = -(C * 表格顺序权重 + B) 第一个人既贡献顺序覆盖又贡献人数
+     班级 -> 汇点 第 2..n 条弧 费用 = -B                   之后的人只贡献人数
+     志愿者 -> 班级          费用 = 通勤代价(放大 10 倍取整)
+   C >> B >> 通勤代价尺度, 所以最小费用流的最优解就是
+   「先按上传表格顺序覆盖班级, 再最大化安置人数, 最后最小化通勤代价」.  */
+
+class MinCostFlow {
+  constructor(n) { this.n = n; this.to = []; this.cap = []; this.cost = []; this.head = Array.from({ length: n }, () => []); }
+  add(u, v, cap, cost) {
+    this.head[u].push(this.to.length); this.to.push(v); this.cap.push(cap); this.cost.push(cost);
+    this.head[v].push(this.to.length); this.to.push(u); this.cap.push(0); this.cost.push(-cost);
+  }
+  /** 只增广费用为负的路径, 即只做能降低总费用的推送 */
+  run(s, t) {
+    let flow = 0, total = 0;
+    for (;;) {
+      const dist = new Array(this.n).fill(Infinity);
+      const inq = new Array(this.n).fill(false);
+      const pre = new Array(this.n).fill(-1);
+      dist[s] = 0; const q = [s]; inq[s] = true;
+      while (q.length) {
+        const u = q.shift(); inq[u] = false;
+        for (const e of this.head[u]) {
+          if (this.cap[e] <= 0) continue;
+          const v = this.to[e], nd = dist[u] + this.cost[e];
+          if (nd < dist[v] - 1e-9) {
+            dist[v] = nd; pre[v] = e;
+            if (!inq[v]) { inq[v] = true; q.push(v); }
+          }
+        }
+      }
+      if (dist[t] >= -1e-9) break;      // 没有能降低费用的增广路了
+      let push = Infinity;
+      for (let v = t; v !== s; v = this.to[pre[v] ^ 1]) push = Math.min(push, this.cap[pre[v]]);
+      for (let v = t; v !== s; v = this.to[pre[v] ^ 1]) { this.cap[pre[v]] -= push; this.cap[pre[v] ^ 1] += push; }
+      flow += push; total += push * dist[t];
+    }
+    return { flow, total };
+  }
+}
+
+function buildPairs(vols, classes, provider, p) {
+  const pairs = new Map();     // "vi,ci" -> {cost, minutes, transfers, from, to}
+  for (let vi = 0; vi < vols.length; vi++) {
+    const v = vols[vi];
+    if (!v.stations.length || !v.slots.length) continue;
+    for (let ci = 0; ci < classes.length; ci++) {
+      const c = classes[ci];
+      if (!c.stations.length) continue;
+      if (!v.slots.includes(c.slot)) continue;                 // 硬约束: 时间完全匹配
+      const r = provider.pair(v.stations, c.stations);
+      if (!r) continue;
+      const over = Math.max(0, r.min - p.comfort);
+      pairs.set(vi + ',' + ci, {
+        cost: Math.round((r.min + p.overagePenalty * over) * 10),
+        minutes: Math.round(r.min * 10) / 10, transfers: r.tr, from: r.from, to: r.to,
+        fallback: !!r.fallback,   // 高德没返回、退回离线估算的站对
+      });
+    }
+  }
+  return pairs;
+}
+
+function solve(vols, classes, provider, params, locks) {
+  const p = Object.assign({}, PARAMS_DEFAULT, params || {});
+  const pairs = buildPairs(vols, classes, provider, p);
+
+  const feasCount = new Array(classes.length).fill(0);
+  for (const k of pairs.keys()) feasCount[+k.split(',')[1]]++;
+  const orderWeight = classes.map((_, ci) => 2 ** (classes.length - ci - 1));
+
+  const maxCost = Math.max(1, ...[...pairs.values()].map(x => x.cost));
+  const B = maxCost * vols.length + 1000;
+  const coverageScale = B * (vols.length + 1) + 1000;
+
+  /* 人工锁定: 直接从模型里剔除, 并扣掉对应名额 */
+  const lockWarn = [];
+  const lockedVol = new Set();
+  const lockedSeat = new Map();
+  const assign = [];
+  const volIdx = new Map(vols.map((v, i) => [v.id, i]));
+  const clsIdx = new Map(classes.map((c, i) => [c.site + '-' + c.cls, i]));
+  for (const vid in (locks || {})) {
+    const ckey = locks[vid];
+    if (!volIdx.has(vid)) { lockWarn.push(`锁定失败: 找不到志愿者 ${vid}`); continue; }
+    if (!clsIdx.has(ckey)) { lockWarn.push(`锁定失败: 找不到班级 ${ckey}`); continue; }
+    const vi = volIdx.get(vid), ci = clsIdx.get(ckey);
+    const d = pairs.get(vi + ',' + ci);
+    if (!d) {
+      lockWarn.push(`锁定的组合不可行, 已忽略: ${vid} -> ${ckey} ` +
+        `(时段不匹配或通勤超上限)`);
+      continue;
+    }
+    lockedVol.add(vi);
+    lockedSeat.set(ci, (lockedSeat.get(ci) || 0) + 1);
+    assign.push({ vol: vid, site: classes[ci].site, cls: classes[ci].cls, slot: classes[ci].slot,
+                  minutes: d.minutes, transfers: d.transfers, from: d.from, to: d.to,
+                  transport: vols[vi].stations.join('/'), flexible: vols[vi].flexible,
+                  locked: true, fallback: d.fallback });
+  }
+
+  /* 建图: 0=源  1..V=志愿者  V+1..V+C=班级  V+C+1=汇 */
+  const V = vols.length, C = classes.length;
+  const S = 0, T = V + C + 1;
+  const g = new MinCostFlow(T + 1);
+  for (let vi = 0; vi < V; vi++) {
+    if (lockedVol.has(vi)) continue;
+    g.add(S, 1 + vi, p.maxClassPerVolunteer, 0);
+  }
+  for (let ci = 0; ci < C; ci++) {
+    const already = lockedSeat.get(ci) || 0;
+    const room = classes[ci].need - already;
+    if (room <= 0) continue;
+    if (already === 0) {
+      g.add(1 + V + ci, T, 1, -(coverageScale * orderWeight[ci] + B)); // 第一个人: 顺序覆盖 + 人数
+      if (room > 1) g.add(1 + V + ci, T, room - 1, -B);      // 之后的人: 只算人数
+    } else {
+      g.add(1 + V + ci, T, room, -B);                        // 已被锁定的人覆盖过了
+    }
+  }
+  const edgeOf = new Map();
+  for (const [k, d] of pairs) {
+    const [vi, ci] = k.split(',').map(Number);
+    if (lockedVol.has(vi)) continue;
+    if ((classes[ci].need - (lockedSeat.get(ci) || 0)) <= 0) continue;
+    edgeOf.set(k, g.to.length);
+    g.add(1 + vi, 1 + V + ci, 1, d.cost);
+  }
+  g.run(S, T);
+
+  for (const [k, e] of edgeOf) {
+    if (g.cap[e] === 0) {                                     // 该弧被用满即表示分配成立
+      const [vi, ci] = k.split(',').map(Number);
+      const d = pairs.get(k);
+      assign.push({ vol: vols[vi].id, site: classes[ci].site, cls: classes[ci].cls,
+                    slot: classes[ci].slot, minutes: d.minutes, transfers: d.transfers,
+                    from: d.from, to: d.to, transport: vols[vi].stations.join('/'),
+                    flexible: vols[vi].flexible, locked: false, fallback: d.fallback });
+    }
+  }
+  assign.sort((a, b) => (parseInt(a.site) - parseInt(b.site)) ||
+    a.cls.localeCompare(b.cls) || a.vol.localeCompare(b.vol, 'zh'));
+
+  return { assign, pairs, feasCount, weight: orderWeight, lockWarn,
+           objective: { coverageScale, B, maxCost } };
+}
+
+/* ---------------- 结果汇总 ---------------- */
+
+function summarize(vols, classes, assign, pairs, feasCount, params) {
+  const p = Object.assign({}, PARAMS_DEFAULT, params || {});
+  const byClass = new Map();
+  for (const a of assign) {
+    const k = a.site + '-' + a.cls;
+    if (!byClass.has(k)) byClass.set(k, []);
+    byClass.get(k).push(a.vol);
+  }
+  const needTotal = classes.reduce((s, c) => s + c.need, 0);
+  const covered = classes.filter(c => (byClass.get(c.site + '-' + c.cls) || []).length > 0).length;
+  const full = classes.filter(c => (byClass.get(c.site + '-' + c.cls) || []).length >= c.need).length;
+  const times = assign.map(a => a.minutes);
+  const placedIds = new Set(assign.map(a => a.vol));
+  const unplaced = vols.filter(v => !placedIds.has(v.id));
+
+  const gaps = [];
+  classes.forEach((c, ci) => {
+    const got = (byClass.get(c.site + '-' + c.cls) || []).length;
+    if (got < c.need) gaps.push({
+      site: c.site, cls: c.cls, slot: c.slot, need: c.need, got, short: c.need - got,
+      feasible: feasCount[ci], station: c.stations.join('/'),
+      reason: feasCount[ci] === 0
+        ? (c.stations.length ? '该时段没有任何通勤可行的志愿者, 只能定向招募' : '项目点站名未解析成功')
+        : `该时段仅 ${feasCount[ci]} 人可行, 名额被表格中更靠前的班级占用`,
+    });
+  });
+  gaps.sort((a, b) => (b.short - a.short) || (a.feasible - b.feasible));
+
+  const unplacedRows = unplaced.map(v => {
+    const vi = vols.indexOf(v);
+    let n = 0;
+    for (const k of pairs.keys()) if (+k.split(',')[0] === vi) n++;
+    let reason;
+    if (!v.stations.length) reason = '站点无法解析';
+    else if (!v.slots.length) reason = '没有填可用时段';
+    else if (n === 0) {
+      const sameSlot = classes.filter(c => v.slots.includes(c.slot));
+      reason = sameSlot.length
+        ? '时段有课, 但对应班级名额已被表格中更靠前或通勤更短的人占用'
+        : `可用时段 ${v.slots.join('/')} 没有对应的班级`;
+    } else reason = `有 ${n} 个可行班级, 但名额已被通勤更短的人占用`;
+    return { vol: v.id, slots: v.slots.join('/'), station: v.stations.join('/') || v.rawStation,
+             reason };
+  });
+
+  const demand = new Map(), supply = new Map();
+  for (const c of classes) demand.set(c.slot, (demand.get(c.slot) || 0) + c.need);
+  for (const v of vols) for (const s of v.slots) supply.set(s, (supply.get(s) || 0) + 1);
+  const slotRows = [...new Set([...demand.keys(), ...supply.keys()])]
+    .sort((a, b) => ALL_SLOTS.indexOf(a) - ALL_SLOTS.indexOf(b))
+    .map(s => ({ slot: s, demand: demand.get(s) || 0, supply: supply.get(s) || 0,
+                 gap: (supply.get(s) || 0) - (demand.get(s) || 0),
+                 placed: assign.filter(a => a.slot === s).length }));
+
+  const sum = times.reduce((a, b) => a + b, 0);
+  return {
+    byClass, gaps, unplacedRows, slotRows,
+    stat: {
+      volTotal: vols.length, classTotal: classes.length, needTotal,
+      placed: assign.length, covered, full, unplaced: unplaced.length,
+      shortSeats: needTotal - assign.length,
+      avgMinutes: times.length ? Math.round(sum / times.length * 10) / 10 : 0,
+      maxMinutes: times.length ? Math.max(...times) : 0,
+      overComfort: times.filter(t => t > p.comfort).length,
+      zeroTransfer: assign.filter(a => a.transfers === 0).length,
+      totalMinutes: Math.round(sum),
+    },
+  };
+}
+
+
+const CORE = {PARAMS_DEFAULT, ALL_SLOTS, STATION_ALIASES, MetroEngine, MinCostFlow, cleanInput, solve, summarize, normSlot, normTransport, splitStationTokens, resolveStations};
+
+</script>
+<script>
+/* ============================================================
+   界面层. 逻辑全部来自 app_core.js, 这里只负责录入、调用、渲染.
+   ============================================================ */
+
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g,
+  c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+const VOL_COLS = [
+  { k: 'id', label: '志愿者编号', w: 110, ph: 'Vol 1' },
+  { k: 'station', label: '最近地铁站', w: 300, ph: '10号线 殷高东路   多个站用分号隔开' },
+  { k: 'extraStation', label: '其他就近地铁站 / 换乘线路', w: 260, ph: '若还有其他就近地铁站或可换乘线路，请一并写明' },
+  { k: 'slots', label: '可用时段', w: 320, ph: '周三下午; 周六上午' },
+];
+const SITE_COLS = [
+  { k: 'site', label: '项目点编号', w: 100, ph: '1' },
+  { k: 'station', label: '项目点地铁站', w: 260, ph: '10号线 港城路   多个站用分号隔开' },
+  { k: 'cls', label: '班级', w: 100, ph: 'class 1' },
+  { k: 'slot', label: '上课时段', w: 150, ph: '周六上午' },
+  { k: 'need', label: '需要人数', w: 90, ph: '2' },
+];
+
+const state = {
+  vols: [], sites: [], locks: [],
+  aliases: Object.assign({}, CORE.STATION_ALIASES),
+  params: Object.assign({}, CORE.PARAMS_DEFAULT),
+  amapQps: 3,
+  engine: null, provider: null, providerName: '离线估算（本地地铁拓扑）',
+  result: null, summary: null, cleaned: null,
+  amapCache: {},
+};
+
+/* ---------------- 本地保存 ----------------
+   录入的数据和通勤缓存存在浏览器里, 刷新或关掉标签页都不会丢.
+   高德 Key 不保存, 每次要重填, 免得明文留在共用电脑上.
+   浏览器禁用存储时全部静默降级, 不影响任何功能.                       */
+
+const STORE_KEY = 'puluoshi.allocation.v1';
+let storeOK = true;
+let persistTimer = null;
+
+function persist() {
+  if (!storeOK) return;
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({
+        v: 1, at: Date.now(),
+        vols: state.vols, sites: state.sites, locks: state.locks,
+        aliases: state.aliases, params: state.params, amapQps: state.amapQps,
+        amapCache: state.amapCache,
+      }));
+      showSaved();
+    } catch (e) {
+      storeOK = false;
+      const el = $('#saveState');
+      if (el) el.textContent = '浏览器不允许本地保存，数据仅存在当前页面';
+    }
+  }, 400);
+}
+
+function restore() {
+  let raw = null;
+  try { raw = localStorage.getItem(STORE_KEY); } catch (e) { storeOK = false; return false; }
+  if (!raw) return false;
+  try {
+    const d = JSON.parse(raw);
+    if (d.vols) state.vols = d.vols;
+    if (d.sites) state.sites = d.sites;
+    if (d.locks) state.locks = d.locks;
+    if (d.aliases) state.aliases = d.aliases;
+    if (d.params) state.params = Object.assign({}, CORE.PARAMS_DEFAULT, d.params);
+    if (d.amapQps) state.amapQps = d.amapQps;
+    if (d.amapCache) state.amapCache = d.amapCache;
+    return { at: d.at, cache: Object.keys(state.amapCache).length };
+  } catch (e) { return false; }
+}
+
+function clearStore() { try { localStorage.removeItem(STORE_KEY); } catch (e) { /* ignore */ } }
+
+let savedTimer = null;
+function showSaved() {
+  const el = $('#saveState');
+  if (!el) return;
+  const n = Object.keys(state.amapCache).length;
+  el.textContent = '已保存到本机' + (n ? `　通勤缓存 ${n} 条` : '');
+  el.style.opacity = '1';
+  clearTimeout(savedTimer);
+  savedTimer = setTimeout(() => { el.style.opacity = '.45'; }, 1600);
+}
+
+/* ---------------- 表格 ---------------- */
+
+function blankRow(cols) { const o = {}; for (const c of cols) o[c.k] = ''; return o; }
+
+function renderTable(host, cols, rows, onChange) {
+  const th = cols.map(c => `<th style="min-width:${c.w}px">${esc(c.label)}</th>`).join('');
+  const body = rows.map((r, i) => '<tr>' + cols.map(c =>
+    `<td><input data-r="${i}" data-k="${c.k}" value="${esc(r[c.k])}" placeholder="${esc(c.ph)}"></td>`
+  ).join('') + `<td class="act"><button class="mini del" data-del="${i}" title="删除本行">✕</button></td></tr>`).join('');
+  host.innerHTML = `<table class="grid"><thead><tr>${th}<th class="act"></th></tr></thead>
+    <tbody>${body || `<tr><td colspan="${cols.length + 1}" class="empty">还没有数据。点上方「载入示例数据」或「上传 Excel」，也可以直接从 Excel 复制一片区域粘贴到这里。</td></tr>`}</tbody></table>`;
+
+  host.oninput = e => {
+    const t = e.target;
+    if (t.tagName !== 'INPUT') return;
+    rows[+t.dataset.r][t.dataset.k] = t.value;
+    onChange(false);
+  };
+  host.onclick = e => {
+    const b = e.target.closest('[data-del]');
+    if (!b) return;
+    rows.splice(+b.dataset.del, 1);
+    onChange(true);
+  };
+  /* 从 Excel 直接粘贴一片区域 */
+  host.onpaste = e => {
+    const txt = (e.clipboardData || window.clipboardData).getData('text');
+    if (!txt || !txt.includes('\t')) return;
+    e.preventDefault();
+    const t = e.target;
+    const r0 = +t.dataset.r, c0 = cols.findIndex(c => c.k === t.dataset.k);
+    const lines = txt.replace(/\r/g, '').split('\n').filter(l => l.trim() !== '');
+    lines.forEach((line, di) => {
+      const cells = line.split('\t');
+      const ri = r0 + di;
+      while (rows.length <= ri) rows.push(blankRow(cols));
+      cells.forEach((val, dj) => {
+        const ci = c0 + dj;
+        if (ci < cols.length) rows[ri][cols[ci].k] = val.trim();
+      });
+    });
+    onChange(true);
+  };
+}
+
+function refresh(rebuild) {
+  if (rebuild !== false) {
+    renderTable($('#volTable'), VOL_COLS, state.vols, refresh);
+    renderTable($('#siteTable'), SITE_COLS, state.sites, refresh);
+  }
+  $('#volCount').textContent = state.vols.filter(r => r.id || r.station).length;
+  $('#siteCount').textContent = state.sites.filter(r => r.site || r.cls).length;
+  renderLocks();
+  renderAliases();
+  liveCheck();
+  persist();
+}
+
+/* 录入即校验, 不用等到点计算 */
+function liveCheck() {
+  const volRows = state.vols.map(r => [r.id, r.station, r.extraStation || r.transport, r.slots]);
+  const siteRows = state.sites.map(r => [r.site, r.station, r.cls, r.slot, r.need]);
+  if (!volRows.length && !siteRows.length) { $('#preflight').innerHTML = ''; return; }
+  const c = CORE.cleanInput(state.engine, volRows, siteRows, state.aliases);
+  state.cleaned = c;
+  const err = c.warn.filter(w => w[0] === 'ERROR');
+  const wrn = c.warn.filter(w => w[0] === 'WARN');
+  const need = c.classes.reduce((s, x) => s + x.need, 0);
+  let h = `<div class="pf">已识别 <b>${c.vols.length}</b> 名志愿者、<b>${c.classes.length}</b> 个班级、
+    共 <b>${need}</b> 个名额。`;
+  if (c.vols.length && need > c.vols.length * state.params.maxClassPerVolunteer)
+    h += ` 每人只带 ${state.params.maxClassPerVolunteer} 个班，所以最多只能填满 <b>${c.vols.length}</b> 个名额，
+      <b class="neg">结构性缺口 ${need - c.vols.length} 个</b>。`;
+  h += '</div>';
+  if (err.length) h += `<div class="msg err"><b>${err.length} 条错误，这些数据无法参与计算</b><ul>` +
+    err.slice(0, 12).map(w => `<li>${esc(w[1])}</li>`).join('') +
+    (err.length > 12 ? `<li>… 另有 ${err.length - 12} 条</li>` : '') + '</ul></div>';
+  if (wrn.length) h += `<div class="msg warn"><b>${wrn.length} 条提醒，靠推断补上的，建议人工确认</b><ul>` +
+    wrn.map(w => `<li>${esc(w[1])}</li>`).join('') + '</ul></div>';
+  if (!err.length && !wrn.length) h += `<div class="msg ok">数据格式检查通过。</div>`;
+  $('#preflight').innerHTML = h;
+  $('#runBtn').disabled = !(c.vols.length && c.classes.length);
+}
+
+/* ---------------- 站名别名 ---------------- */
+
+function renderAliases() {
+  const rows = Object.entries(state.aliases).map(([k, v]) =>
+    `<tr><td><code>${esc(k)}</code></td><td>${esc(v)}</td>
+     <td class="act"><button class="mini del" data-al="${esc(k)}">✕</button></td></tr>`).join('');
+  $('#aliasTable').innerHTML = `<table class="grid"><thead><tr>
+    <th style="min-width:340px">原始写法（自动忽略大小写、空格、标点）</th>
+    <th style="min-width:160px">对应地铁站</th><th class="act"></th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+  $('#aliasTable').onclick = e => {
+    const b = e.target.closest('[data-al]');
+    if (b) { delete state.aliases[b.dataset.al]; refresh(false); }
+  };
+}
+
+/* ---------------- 人工锁定 ---------------- */
+
+function renderLocks() {
+  const opts = (state.cleaned ? state.cleaned.classes : [])
+    .map(c => `${c.site}-${c.cls}`);
+  const rows = state.locks.map((l, i) => `<tr>
+    <td><input data-lk="${i}" data-f="vol" value="${esc(l.vol)}" placeholder="Vol 5"></td>
+    <td><input data-lk="${i}" data-f="cls" value="${esc(l.cls)}" placeholder="3-class 1" list="clsList"></td>
+    <td class="act"><button class="mini del" data-dellk="${i}">✕</button></td></tr>`).join('');
+  $('#lockTable').innerHTML = `<datalist id="clsList">${opts.map(o => `<option value="${esc(o)}">`).join('')}</datalist>
+    <table class="grid"><thead><tr><th style="min-width:140px">志愿者编号</th>
+    <th style="min-width:200px">钉死到哪个班（项目点编号-班级）</th><th class="act"></th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="3" class="empty">没有锁定任何人。老志愿者想固定回原项目点的，在这里加一行。</td></tr>'}</tbody></table>`;
+  $('#lockTable').oninput = e => {
+    const t = e.target;
+    if (t.dataset.lk !== undefined) state.locks[+t.dataset.lk][t.dataset.f] = t.value;
+  };
+  $('#lockTable').onclick = e => {
+    const b = e.target.closest('[data-dellk]');
+    if (b) { state.locks.splice(+b.dataset.dellk, 1); renderLocks(); }
+  };
+}
+
+/* ---------------- 参数 ---------------- */
+
+const PARAM_FIELDS = [
+  ['maxClassPerVolunteer', '每人最多带几个班', '沟通中确认一学期只带一个班'],
+  ['comfort', '单程舒适阈值（分钟）', '时段匹配时, 优先分配单程通勤时间更短的志愿者'],
+  ['overagePenalty', '超时惩罚倍数', '超过单程舒适阈值的每分钟按几倍计入代价'],
+];
+
+function renderParams() {
+  $('#params').innerHTML = PARAM_FIELDS.map(([k, label, help]) => `<label class="pf-row">
+    <span class="pf-lb">${esc(label)}</span>
+    <input type="number" step="any" data-p="${k}" value="${state.params[k]}">
+    <span class="pf-hp">${esc(help)}</span></label>`).join('');
+  $('#params').oninput = e => {
+    const k = e.target.dataset.p;
+    if (!k) return;
+    const v = parseFloat(e.target.value);
+    if (!isNaN(v)) { state.params[k] = v; liveCheck(); }
+  };
+}
+
+/* ---------------- 通勤数据来源 ---------------- */
+
+/* ============================================================
+   ▼▼▼ 高德接口接入位 ▼▼▼
+
+   走的是「Web端(JS API)」这条路: 加载高德 JS SDK, 用内置的 AMap.Transfer
+   公交换乘插件查询. 原因是高德的「Web服务」类型 Key 面向企业/服务端场景,
+   个人开发者账号通常申请不到, 只能创建「Web端(JS API)」类型的 Key.
+   这种 Key 没法直接调 restapi.amap.com（会返回 INVALID_USER_KEY）,
+   必须通过浏览器里的 JS SDK 使用.
+
+   控制台: https://console.amap.com/dev/key/app
+           创建应用 → 添加 Key → 服务平台选「Web端(JS API)」
+           会同时生成一个「安全密钥」(securityJsCode), 两个都要填.
+   插件文档: https://lbs.amap.com/api/javascript-api-v2/documentation#transfer
+
+   重要: AMap.Transfer 返回的 result.plans[].segments[] 具体字段名,
+   我没有真实浏览器环境可以核实, 是照着高德历史文档写的, 可能和当前
+   SDK 版本的实际字段对不上。_isRailSegment 用了比较宽松的启发式匹配
+   (对整段结果做正则)兜底, 但换乘次数的准确性需要你打开浏览器控制台
+   核实一次: 计算时会把每个站对的原始 result 打印出来 (console.log
+   前缀 "[高德原始返回]"), 麻烦复制几条给我核对字段。
+   ============================================================ */
+
+function loadAmapSDK(key, jscode) {
+  return new Promise((res, rej) => {
+    if (window.AMap && window.AMap.Transfer) return res();
+    window._AMapSecurityConfig = { securityJsCode: jscode || '' };
+    const s = document.createElement('script');
+    s.src = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(key)}&plugin=AMap.Transfer`;
+    s.onload = () => (window.AMap && window.AMap.Transfer) ? res()
+      : rej(new Error('SDK 已加载但 AMap.Transfer 插件不可用'));
+    s.onerror = () => rej(new Error('SDK 脚本加载失败，检查网络，或 Key／安全密钥是否正确'));
+    document.head.appendChild(s);
+  });
+}
+
+/* 已知会一直失败、不该继续重试的错误关键词 */
+const AMAP_FATAL_HINTS = [
+  ['INVALID_USER_KEY', 'Key 无效'],
+  ['INVALID_USER_SCODE', '安全密钥（securityJsCode）不对'],
+  ['USERKEY_PLAT_NOMATCH', 'Key 的平台类型不对，请确认创建时选的是「Web端(JS API)」'],
+  ['DAILY_QUERY_OVER_LIMIT', '今日调用量已达上限'],
+  ['INSUFFICIENT_PRIVILEGES', 'Key 没有开通公交路径规划权限'],
+  ['CUQPS_HAS_EXCEEDED_THE_LIMIT', '调用过于频繁'],
+];
+
+class AmapProvider {
+  constructor(engine, cache) {
+    this.engine = engine;
+    this.cache = cache || {};
+    this.transfer = null;   // run() 里等 SDK 加载完成后再赋值
+    this.calls = 0; this.errors = []; this.abort = false;
+    this.consecutiveFail = 0;
+    this.debugSamples = 0;  // 只把前几条原始返回打进控制台, 不刷屏
+  }
+  ck(o, d) { return o + '>' + d; }
+
+  _isRailSegment(seg) {
+    /* 字段名未经真实环境验证, 用宽松匹配兜底: 只要这一段的原始数据里
+       出现"地铁"或"号线"字样, 就算作一段轨道交通 */
+    return /地铁|号线/.test(JSON.stringify(seg));
+  }
+
+  /* 单站对. 返回 {minutes, transfers, walk} 或 null */
+  fetchPair(o, d) {
+    const oc = this.engine.coord.get(o), dc = this.engine.coord.get(d);
+    if (!oc || !dc) return Promise.resolve(null);
+    return new Promise(resolve => {
+      this.transfer.search(new AMap.LngLat(oc[0], oc[1]), new AMap.LngLat(dc[0], dc[1]),
+        (status, result) => {
+          this.calls++;
+          if (this.debugSamples < 5) {
+            this.debugSamples++;
+            console.log(`[高德原始返回 ${this.debugSamples}/5] ${o} → ${d}`, status, result);
+          }
+          if (status !== 'complete' || !result || !result.plans || !result.plans.length) {
+            const info = String((result && result.info) || status || '未知错误');
+            this.errors.push(`${o} → ${d}: ${info}`);
+            const hit = AMAP_FATAL_HINTS.find(([k]) => info.includes(k));
+            this.consecutiveFail = hit ? 999 : this.consecutiveFail + 1;
+            return resolve(null);
+          }
+          this.consecutiveFail = 0;
+          const p = result.plans[0];
+          let rail = 0;
+          for (const seg of (p.segments || [])) if (this._isRailSegment(seg)) rail++;
+          resolve({
+            minutes: Math.round((p.time || 0) / 60 * 10) / 10,
+            transfers: Math.max(0, rail - 1),
+            walk: p.walking_distance || p.distance || 0,
+          });
+        });
+    });
+  }
+
+  /* 求解器要求同步取值, 所以先把用得到的站对全部预取进缓存.
+     连续失败达到阈值就中断整个流程, 不白跑几百次 */
+  async prefetch(stationPairs, onProgress) {
+    const todo = stationPairs.filter(([o, d]) => o !== d && !(this.ck(o, d) in this.cache));
+    for (let i = 0; i < todo.length; i++) {
+      if (this.abort) throw new Error('已取消');
+      const [o, d] = todo[i];
+      this.cache[this.ck(o, d)] = await this.fetchPair(o, d);
+      onProgress(i + 1, todo.length, this.errors.length);
+      if (this.consecutiveFail >= 5) {
+        throw new Error(`连续 ${this.consecutiveFail} 次调用失败，最近一条：` +
+          `${this.errors[this.errors.length - 1]}。已停止后续调用，避免浪费额度。`);
+      }
+      await sleep(150);
+    }
+    return { fetched: todo.length, total: stationPairs.length };
+  }
+
+  pair(origins, dests) {
+    let best = null;
+    for (const o of origins) for (const d of dests) {
+      const v = (o === d) ? { minutes: 0, transfers: 0 } : this.cache[this.ck(o, d)];
+      if (!v) continue;
+      if (!best || v.minutes < best.min) best = { min: v.minutes, tr: v.transfers, from: o, to: d };
+    }
+    /* 高德没返回结果的站对退回离线估算, 并在报告里标注出来 */
+    if (!best) { const r = this.engine.bestPair(origins, dests); if (r) { r.fallback = true; return r; } }
+    return best;
+  }
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* 提交计算前先测一次, 一次调用就知道 Key／安全密钥能不能用,
+   不用等跑完一整批才发现填错了 */
+async function testAmapKey(key, jscode) {
+  await loadAmapSDK(key, jscode);
+  const transfer = new AMap.Transfer({ city: '上海', policy: AMap.TransferPolicy.LEAST_TIME });
+  return new Promise(resolve => {
+    // 人民广场 -> 徐家汇, 1 号线 4 站直达, 真实值大约 10~13 分钟
+    transfer.search(new AMap.LngLat(121.469689, 31.231566), new AMap.LngLat(121.436220, 31.194637),
+      (status, result) => {
+        console.log('[高德原始返回] 测试 Key', status, result);
+        if (status === 'complete' && result && result.plans && result.plans.length) {
+          resolve({ ok: true, minutes: Math.round(result.plans[0].time / 60 * 10) / 10 });
+        } else {
+          resolve({ ok: false, info: String((result && result.info) || status) });
+        }
+      });
+  });
+}
+
+/** 枚举求解真正需要的站对: 只算时段能匹配上的组合, 大幅减少 API 调用 */
+function neededStationPairs(vols, classes) {
+  const set = new Set(), out = [];
+  for (const v of vols) for (const c of classes) {
+    if (!v.slots.includes(c.slot)) continue;
+    for (const o of v.stations) for (const d of c.stations) {
+      const k = o + '>' + d;
+      if (o !== d && !set.has(k)) { set.add(k); out.push([o, d]); }
+    }
+  }
+  return out;
+}
+
+/* ---------------- 主流程 ---------------- */
+
+async function run() {
+  const btn = $('#runBtn');
+  btn.disabled = true;
+  const src = $('input[name=src]:checked').value;
+  const prog = $('#progress');
+  let note = '';
+
+  try {
+    const volRows = state.vols.map(r => [r.id, r.station, r.extraStation || r.transport, r.slots]);
+    const siteRows = state.sites.map(r => [r.site, r.station, r.cls, r.slot, r.need]);
+    const c = CORE.cleanInput(state.engine, volRows, siteRows, state.aliases);
+
+    let provider = state.engine;
+    state.providerName = '离线估算（本地地铁拓扑，精度约 ±15%）';
+
+    if (src === 'amap') {
+      const key = $('#amapKey').value.trim();
+      const jscode = $('#amapCode').value.trim();
+      if (!key) throw new Error('请先填入高德 Key');
+      const pairs = neededStationPairs(c.vols, c.classes);
+      const ap = new AmapProvider(state.engine, state.amapCache);
+
+      prog.style.display = 'block';
+      prog.textContent = '正在加载高德 JS SDK…';
+      await loadAmapSDK(key, jscode);
+      ap.transfer = new AMap.Transfer({ city: '上海', policy: AMap.TransferPolicy.LEAST_TIME });
+
+      const cached = pairs.filter(([o, d]) => ap.ck(o, d) in ap.cache).length;
+      prog.innerHTML = `共需要 ${pairs.length} 个站对，其中 ${cached} 个已有缓存，` +
+        `本次要调用 ${pairs.length - cached} 次…`;
+      $('#cancelBtn').style.display = 'inline-block';
+      $('#cancelBtn').onclick = () => { ap.abort = true; };
+
+      const t0 = Date.now();
+      try {
+        const r = await ap.prefetch(pairs, (i, n, errs) => {
+          const eta = Math.round((Date.now() - t0) / i * (n - i) / 1000);
+          prog.innerHTML = `正在调用高德公交换乘：<b>${i} / ${n}</b>` +
+            `　剩余约 ${eta} 秒` + (errs ? `　已有 ${errs} 个站对没结果` : '');
+          /* 每取一条就落盘, 中途出错也不会白跑 */
+          if (i % 10 === 0) { state.amapCache = ap.cache; persist(); }
+        });
+        state.providerName = `高德公交换乘（本次新调用 ${r.fetched} 次，` +
+          `缓存复用 ${r.total - r.fetched} 次）`;
+      } finally {
+        /* 无论成功、失败还是中途取消, 已经花掉的调用都要留住 */
+        state.amapCache = ap.cache;
+        persist();
+        $('#cancelBtn').style.display = 'none';
+        prog.style.display = 'none';
+      }
+
+      provider = ap;
+      if (ap.errors.length) note = `高德有 ${ap.errors.length} 个站对没返回结果，这些已退回离线估算。` +
+        `第一条：${ap.errors[0]}`;
+    }
+
+    const locks = {};
+    for (const l of state.locks) if (l.vol && l.cls) locks[l.vol.trim()] = l.cls.trim();
+
+    const res = CORE.solve(c.vols, c.classes, provider, state.params, locks);
+    const sm = CORE.summarize(c.vols, c.classes, res.assign, res.pairs, res.feasCount, state.params);
+
+    state.result = res; state.summary = sm; state.cleaned = c;
+    renderResult(c, res, sm, note);
+    const box = $('#resultCard');
+    box.style.display = 'block';
+    /* 滚动只是锦上添花, 浏览器不支持时绝不能让它变成一句「计算失败」 */
+    try { box.scrollIntoView && box.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    catch (_) { /* ignore */ }
+  } catch (err) {
+    prog.style.display = 'none';
+    alert('计算失败：' + err.message);
+    console.error(err);
+  }
+  btn.disabled = false;
+}
+
+/* ---------------- 结果渲染 ---------------- */
+
+function tbl(headers, rows, numCols = [], rowClass) {
+  const th = headers.map((h, i) => `<th class="${numCols.includes(i) ? 'n' : ''}">${esc(h)}</th>`).join('');
+  const tb = rows.map((r, ri) => `<tr class="${rowClass ? rowClass(r, ri) : ''}">` + r.map((v, i) =>
+    `<td class="${numCols.includes(i) ? 'n' : ''}">${typeof v === 'string' && v.startsWith('<') ? v : esc(v)}</td>`
+  ).join('') + '</tr>').join('');
+  return `<div class="restable"><div class="tablescroll">
+    <table class="res"><thead><tr>${th}</tr></thead><tbody>${tb}</tbody></table></div></div>`;
+}
+
+const pill = (txt, kind) => `<span class="pill ${kind}">${esc(txt)}</span>`;
+
+function renderResult(c, res, sm, note) {
+  const s = sm.stat;
+  const cards = [
+    ['安置志愿者', `${s.placed} / ${s.volTotal}`],
+    ['至少 1 人的班级', `${s.covered} / ${s.classTotal}`],
+    ['配满的班级', `${s.full} / ${s.classTotal}`],
+    ['未填补名额', s.shortSeats],
+    ['平均单程通勤', s.avgMinutes + ' 分'],
+    ['最长单程通勤', s.maxMinutes + ' 分'],
+    [`超过 ${state.params.comfort} 分钟`, s.overComfort + ' 条'],
+    ['零换乘', `${s.zeroTransfer} / ${s.placed}`],
+  ];
+  $('#cards').innerHTML = cards.map(([k, v]) =>
+    `<div class="card"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join('');
+
+  let src = `<div class="msg ${state.providerName.startsWith('高德') ? 'ok' : 'warn'}">
+    <b>通勤时间来源：${esc(state.providerName)}</b>`;
+  if (!state.providerName.startsWith('高德'))
+    src += `<br>离线估算的换乘惩罚是个固定值，而真实换乘时间在不同站差别很大。
+      这个精度够判断结构性缺口，但正式排班前建议切到高德。`;
+  src += '</div>';
+  if (note) src += `<div class="msg warn">${esc(note)}</div>`;
+  if (res.lockWarn.length) src += `<div class="msg err"><b>人工锁定有问题</b><ul>` +
+    res.lockWarn.map(w => `<li>${esc(w)}</li>`).join('') + '</ul></div>';
+  const fb = res.assign.filter(a => a.fallback).length;
+  if (fb) src += `<div class="msg warn">其中 ${fb} 条分配的通勤时间是离线估算的。</div>`;
+  $('#srcNote').innerHTML = src;
+
+  const mx = Math.max(1, ...sm.slotRows.map(r => Math.max(r.demand, r.supply)));
+  const barRow = (label, val, color) => `<div class="barrow">
+    <span class="bar" style="width:${val / mx * 118}px;background:${color}"></span>
+    <span>${label} ${val}</span></div>`;
+  $('#tab-slot').innerHTML = `<p class="hint">差额为负的时段是真瓶颈，无论怎么排都填不满，只能定向招募；
+    为正的时段志愿者过剩。这张表可以直接拿去指导下一期招募。</p>` +
+    tbl(['时段', '需求名额', '可用志愿者', '差额', '已安置', '需求 / 供给'],
+      sm.slotRows.map(r => [r.slot, r.demand, r.supply,
+        `<span class="${r.gap < 0 ? 'neg' : 'pos'}">${r.gap > 0 ? '+' : ''}${r.gap}</span>`,
+        r.placed,
+        `<div class="barwrap">${barRow('需求', r.demand, 'linear-gradient(90deg,#E5686C,#DC2F35)')}
+          ${barRow('可用', r.supply, 'linear-gradient(90deg,#3FC49A,#0E9F6E)')}</div>`]),
+      [1, 2, 3, 4], r => (r[1] > r[2] ? 'hot' : ''));
+
+  const cf = state.params.comfort;
+  $('#tab-assign').innerHTML = `<p class="hint">共 ${res.assign.length} 条。
+    <b>底色标黄</b>的是单程超过 ${cf} 分钟的，人工微调时重点看这几行。</p>` +
+    tbl(['项目点', '班级', '时段', '志愿者', '单程分钟', '换乘', '起点站', '终点站', '候选起点站', '锁定'],
+      res.assign.map(a => [a.site, a.cls, a.slot, a.vol, a.minutes.toFixed(1),
+        a.transfers === 0 ? pill('直达', 'g') : pill(a.transfers + ' 次', a.transfers >= 2 ? 'a' : 'n'),
+        a.from, a.to, a.transport, a.locked ? '是' : '']),
+      [4], r => (parseFloat(r[4]) > cf ? 'hot' : ''));
+
+  $('#tab-gap').innerHTML = `<p class="hint">共缺 ${sm.gaps.reduce((x, g) => x + g.short, 0)} 个名额，
+    涉及 ${sm.gaps.length} 个班级。<b>「可行人数」为 0</b> 的班级是招募问题，不是排班能解决的。</p>` +
+    tbl(['项目点', '班级', '时段', '地铁站', '缺口', '该时段可行人数', '说明'],
+      sm.gaps.map(g => [g.site, g.cls, g.slot, g.station, g.short,
+        g.feasible === 0 ? pill('0', 'r') : g.feasible, g.reason]),
+      [4, 5], r => (r[5] && r[5].includes && r[5].includes('pill') ? 'hot' : ''));
+
+  $('#tab-unplaced').innerHTML = `<p class="hint">共 ${sm.unplacedRows.length} 人。
+    原因写「名额已被通勤更短的人占用」的，是供需问题而不是他们本身不合适。</p>` +
+    tbl(['志愿者', '候选起点站', '可用时段', '原因'],
+      sm.unplacedRows.map(u => [u.vol, u.station, u.slots, u.reason]));
+
+  const back = c.classes.map(x => {
+    const got = sm.byClass.get(x.site + '-' + x.cls) || [];
+    return [x.site, x.cls, x.rawSlot || x.slot, x.need, got.join(', '),
+      got.length < x.need ? '未配满，需人工处理' : ''];
+  });
+  $('#tab-back').innerHTML = `<p class="hint">这张表的列结构和原始 site info 一致，可以直接覆盖回填。
+    <button class="mini" onclick="copyBackfill()">复制推荐列</button></p>` +
+    tbl(['Serial number', 'Class number', 'Class time', 'number needed',
+      'Volunteer recommendations', 'Other remarks'], back, [3],
+      r => (r[5] ? 'hot' : ''));
+
+  const err = c.warn.filter(w => w[0] === 'ERROR'), wrn = c.warn.filter(w => w[0] === 'WARN');
+  $('#tab-warn').innerHTML = `<p class="hint">ERROR ${err.length} 条，WARN ${wrn.length} 条。
+    每一条都对应一处可以在采集阶段用下拉选项或固定分隔符消除的格式问题。</p>` +
+    (c.warn.length ? tbl(['级别', '说明'],
+      c.warn.map(w => [w[0] === 'ERROR' ? pill('ERROR', 'r') : pill('WARN', 'a'), w[1]]))
+      : '<p class="hint">无</p>');
+}
+
+function copyBackfill() {
+  const c = state.cleaned, sm = state.summary;
+  const txt = c.classes.map(x => (sm.byClass.get(x.site + '-' + x.cls) || []).join(', ')).join('\n');
+  navigator.clipboard.writeText(txt).then(
+    () => alert(`已复制 ${c.classes.length} 行推荐结果，可直接粘贴到 Excel 的 Volunteer recommendations 列。`),
+    () => alert('复制失败，请手动从表格里选取。'));
+}
+
+/* ---------------- 导入导出 ---------------- */
+
+function download(name, text, mime) {
+  const b = new Blob([text], { type: mime || 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(b); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+function toCSV(rows) {
+  return '﻿' + rows.map(r => r.map(v => {
+    const s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }).join(',')).join('\r\n');
+}
+
+function exportCSV() {
+  const res = state.result, sm = state.summary, c = state.cleaned;
+  if (!res) return alert('请先计算。');
+  const rows = [['# 铺路石志愿者调配结果'], ['# 通勤数据来源', state.providerName], [],
+    ['分配方案'], ['项目点', '班级', '时段', '志愿者', '单程分钟', '换乘', '起点站', '终点站', '候选起点站', '锁定']];
+  for (const a of res.assign) rows.push([a.site, a.cls, a.slot, a.vol, a.minutes, a.transfers,
+    a.from, a.to, a.transport, a.locked ? '是' : '']);
+  rows.push([], ['未填补名额'], ['项目点', '班级', '时段', '地铁站', '缺口', '可行人数', '说明']);
+  for (const g of sm.gaps) rows.push([g.site, g.cls, g.slot, g.station, g.short, g.feasible, g.reason]);
+  rows.push([], ['未安置志愿者'], ['志愿者', '候选起点站', '可用时段', '原因']);
+  for (const u of sm.unplacedRows) rows.push([u.vol, u.station, u.slots, u.reason]);
+  rows.push([], ['时段供需'], ['时段', '需求', '可用', '差额', '已安置']);
+  for (const r of sm.slotRows) rows.push([r.slot, r.demand, r.supply, r.gap, r.placed]);
+  rows.push([], ['数据清洗告警'], ['级别', '说明']);
+  for (const w of c.warn) rows.push([w[0], w[1]]);
+  download('铺路石_分配结果.csv', toCSV(rows), 'text/csv;charset=utf-8');
+}
+
+function exportCache() {
+  const n = Object.keys(state.amapCache).length;
+  if (!n) return alert('还没有高德查询缓存。用高德数据源计算一次之后再导出。');
+  download('高德通勤缓存.json', JSON.stringify(state.amapCache), 'application/json');
+}
+
+function importCache(file) {
+  const fr = new FileReader();
+  fr.onload = () => {
+    try {
+      Object.assign(state.amapCache, JSON.parse(fr.result));
+      persist();
+      alert(`已导入 ${Object.keys(state.amapCache).length} 条通勤缓存，这些站对不会再调用高德。`);
+    } catch (e) { alert('缓存文件解析失败：' + e.message); }
+  };
+  fr.readAsText(file);
+}
+
+/* Excel 上传: 自动找 vol info / site info 两个工作表 */
+function importXlsx(file) {
+  if (typeof XLSX === 'undefined')
+    return alert('Excel 解析库没加载成功（可能是离线打开的）。可以改用从 Excel 复制粘贴的方式录入。');
+  const fr = new FileReader();
+  fr.onload = () => {
+    try {
+      const wb = XLSX.read(new Uint8Array(fr.result), { type: 'array' });
+      const pick = kw => wb.SheetNames.find(n => n.toLowerCase().replace(/\s/g, '').includes(kw));
+      const vs = pick('vol') || wb.SheetNames[0];
+      const ss = pick('site') || wb.SheetNames[1];
+      const grid = n => XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, blankrows: false, defval: '' });
+
+      const vgAll = grid(vs);
+      const oldTransportCol = /transport|交通方式/.test(String((vgAll[0] || [])[2] || '').toLowerCase());
+      const vg = vgAll.slice(1);
+      state.vols = vg.filter(r => String(r[0] || '').trim()).map(r => ({
+        id: String(r[0]).trim(), station: String(r[1] || '').replace(/\n/g, ' ; '),
+        extraStation: oldTransportCol ? '' : String(r[2] || '').replace(/\n/g, ' ; '),
+        slots: String(r[3] || '').replace(/┋/g, '; '),
+      }));
+
+      const sg = grid(ss).slice(1);
+      let curSite = '', curSt = '';
+      state.sites = [];
+      for (const r of sg) {
+        if (String(r[0] || '').trim()) { curSite = String(r[0]).trim(); curSt = String(r[1] || '').replace(/\n/g, ' ; '); }
+        if (!String(r[2] || '').trim()) continue;
+        state.sites.push({ site: curSite, station: curSt, cls: String(r[2]).trim(),
+                           slot: String(r[3] || ''), need: String(r[4] || 2) });
+      }
+      refresh(true);
+      alert(`已读入：志愿者 ${state.vols.length} 人（工作表「${vs}」），班级 ${state.sites.length} 个（工作表「${ss}」）。\n合并单元格已自动向下填充。`);
+    } catch (e) { alert('Excel 解析失败：' + e.message); }
+  };
+  fr.readAsArrayBuffer(file);
+}
+
+function loadExample() {
+  state.vols = EXAMPLE.vols.map(r => ({ id: r[0], station: r[1], extraStation: '',
+                                        slots: String(r[3]).replace(/┋/g, '; ') }));
+  state.sites = EXAMPLE.sites.map(r => ({ site: r[0], station: r[1], cls: r[2],
+                                          slot: r[3], need: String(r[4]) }));
+  refresh(true);
+}
+
+/* ---------------- 初始化 ---------------- */
+
+function boot() {
+  state.engine = new CORE.MetroEngine(TOPO, state.params);
+  $('#topoInfo').textContent =
+    `已内置上海地铁 ${TOPO.lines.length} 条线路、${state.engine.stationLines.size} 个站点`;
+
+  const had = restore();
+  renderParams();
+  refresh(true);
+  if (had) {
+    const when = new Date(had.at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric',
+      hour: '2-digit', minute: '2-digit' });
+    $('#saveState').textContent = `已恢复 ${when} 的数据` + (had.cache ? `　通勤缓存 ${had.cache} 条` : '');
+    $('#saveState').style.opacity = '1';
+  } else if (!storeOK) {
+    $('#saveState').textContent = '浏览器不允许本地保存，数据仅存在当前页面';
+  }
+
+  $('#runBtn').onclick = run;
+  $('#exampleBtn').onclick = loadExample;
+  $('#clearBtn').onclick = () => {
+    const n = Object.keys(state.amapCache).length;
+    if (!confirm(`清空所有已录入的数据？\n\n通勤缓存${n ? `（${n} 条，是花了 API 额度换来的）` : ''}会保留，` +
+      `不会浪费已经调用过的次数。`)) return;
+    state.vols = []; state.sites = []; state.locks = [];
+    $('#resultCard').style.display = 'none';
+    refresh(true);
+  };
+  $('#clearCache').onclick = () => {
+    const n = Object.keys(state.amapCache).length;
+    if (!n) return alert('还没有通勤缓存。');
+    if (!confirm(`清空 ${n} 条通勤缓存？下次计算需要重新调用高德，会消耗 API 额度。`)) return;
+    state.amapCache = {};
+    persist();
+    alert('通勤缓存已清空。');
+  };
+  $('#addVol').onclick = () => { state.vols.push(blankRow(VOL_COLS)); refresh(true); };
+  $('#addSite').onclick = () => { state.sites.push(blankRow(SITE_COLS)); refresh(true); };
+  $('#addLock').onclick = () => { state.locks.push({ vol: '', cls: '' }); renderLocks(); };
+  $('#addAlias').onclick = () => {
+    const k = prompt('原始写法（例如 fengpu avenue）'); if (!k) return;
+    const v = prompt('对应的地铁站中文名（例如 奉浦大道）'); if (!v) return;
+    if (!state.engine.stationLines.has(v)) return alert(`网络里没有「${v}」这个站，请检查写法。`);
+    state.aliases[k.toLowerCase().replace(/[^a-z一-鿿]/g, '')] = v;
+    refresh(false);
+  };
+  $('#xlsxFile').onchange = e => e.target.files[0] && importXlsx(e.target.files[0]);
+  $('#cacheFile').onchange = e => e.target.files[0] && importCache(e.target.files[0]);
+  $('#exportCsv').onclick = exportCSV;
+  $('#exportCache').onclick = exportCache;
+
+  $$('input[name=src]').forEach(r => r.onchange = () => {
+    $('#amapBox').style.display = $('input[name=src]:checked').value === 'amap' ? 'block' : 'none';
+  });
+
+  $('#testKeyBtn').onclick = async () => {
+    const key = $('#amapKey').value.trim();
+    const jscode = $('#amapCode').value.trim();
+    const out = $('#amapTestResult');
+    if (!key) { out.textContent = '请先填 Key'; out.className = 'testresult err'; return; }
+    out.textContent = '测试中…（人民广场 → 徐家汇）';
+    out.className = 'testresult';
+    try {
+      const r = await testAmapKey(key, jscode);
+      if (r.ok) {
+        out.textContent = `可以用。实测 ${r.minutes} 分钟（参考值 10~13 分钟）。` +
+          '打开浏览器控制台能看到原始返回，方便核对字段。';
+        out.className = 'testresult ok';
+      } else {
+        out.textContent = `不可用：${r.info}`;
+        out.className = 'testresult err';
+      }
+    } catch (e) {
+      out.textContent = `不可用：${e.message}`;
+      out.className = 'testresult err';
+    }
+  };
+
+  $$('.tabs').forEach(box => box.onclick = e => {
+    const b = e.target.closest('[data-tab]');
+    if (!b) return;
+    box.querySelectorAll('[data-tab]').forEach(x => x.classList.toggle('on', x === b));
+    const scope = box.dataset.scope;
+    $$(`[data-panel][data-scope="${scope}"]`).forEach(p =>
+      p.style.display = p.dataset.panel === b.dataset.tab ? 'block' : 'none');
+  });
+}
+
+window.copyBackfill = copyBackfill;
+document.addEventListener('DOMContentLoaded', boot);
+
+</script>
+</body>
+</html>
